@@ -326,11 +326,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     initMobileMenu();
     initSmoothScroll();
-    // Don't init hover effects immediately since articles are loaded async
-    setTimeout(initArticleHoverEffects, 500);
     initStickyHeader();
     initSearch();
     initReadingProgress();
+    
+    // Wait for articles to be rendered before attaching hover effects
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            initArticleHoverEffects();
+        }, 100);
+    });
     
     console.log('OpenRockets Magazine loaded successfully!');
 });

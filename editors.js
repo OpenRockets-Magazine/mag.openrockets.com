@@ -47,11 +47,13 @@ async function loadEditors() {
         
         if (data && data.length > 0) {
             grid.innerHTML = data.map(editor => {
-                const initials = editor.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                // Safely get initials with validation
+                const nameParts = editor.name.trim().split(/\s+/).filter(part => part.length > 0);
+                const initials = nameParts.map(n => n[0]).join('').toUpperCase().substring(0, 3);
                 
                 return `
                     <div class="editor-card">
-                        <div class="editor-photo">${initials}</div>
+                        <div class="editor-photo">${initials || '?'}</div>
                         <h2 class="editor-name">${editor.name}</h2>
                         <p class="editor-role">${editor.role}</p>
                         <p class="editor-bio">${editor.bio || ''}</p>

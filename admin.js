@@ -102,9 +102,21 @@ function createSlug(text) {
         .trim();
 }
 
-// Image to Data URL converter
+// Image to Data URL converter with validation
 function imageToDataURL(file) {
     return new Promise((resolve, reject) => {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            reject(new Error('File must be an image'));
+            return;
+        }
+        
+        // Validate file size (max 1MB)
+        if (file.size > 1024 * 1024) {
+            reject(new Error('Image must be less than 1MB'));
+            return;
+        }
+        
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
         reader.onerror = reject;
