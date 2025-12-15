@@ -54,6 +54,31 @@
 
 .article-author {
     font-weight: 600;
+    font-family: 'Ubuntu', Arial, sans-serif;
+}
+
+/* Views styling for article page */
+.views {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'Ubuntu', Arial, sans-serif;
+    font-size: 14px;
+    color: #888;
+}
+
+.views-icon {
+    width: 14px;
+    height: 14px;
+    fill: #888;
+}
+
+/* Verified Badge for article pages - Blue Checkmark */
+.verified-badge {
+    color: #1DA1F2;
+    font-size: 18px;
+    margin-left: 4px;
+    vertical-align: middle;
 }
 
 .article-image-container {
@@ -125,4 +150,111 @@
         flex-direction: column;
         gap: 10px;
     }
+}
+
+/* Inline Loading Spinner */
+.inline-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #666;
+    font-family: 'Ubuntu', Arial, sans-serif;
+    font-size: 14px;
+}
+
+.inline-loader .spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid #eee;
+    border-top: 3px solid #000;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Article Free Ad */
+.article-free-ad {
+    margin: 40px 0;
+    text-align: center;
+    padding: 20px 0;
+}
+
+.article-free-ad .free-ad-container {
+    max-width: 100%;
+    text-align: center;
+}
+
+.article-free-ad .free-ad-link {
+    display: block;
+}
+
+.article-free-ad .free-ad-image {
+    max-width: 100%;
+    max-height: 720px;
+    width: auto;
+    height: auto;
+    display: inline-block;
+}
+
+.article-free-ad .free-ad-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #888;
+    font-family: 'Ubuntu', Arial, sans-serif;
+}
+
+.article-free-ad .free-ad-label svg {
+    width: 14px;
+    height: 14px;
+    fill: #888;
+}
+
+.article-free-ad .free-ad-why {
+    background: none;
+    border: none;
+    color: #0066cc;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Ubuntu', Arial, sans-serif;
+    padding: 0;
+    margin-left: 5px;
+}
+
+.article-free-ad .free-ad-why:hover {
+    text-decoration: underline;
+}
+
+.article-free-ad .free-ad-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.article-free-ad .free-ad-details.expanded {
+    max-height: 200px;
+}
+
+.article-free-ad .free-ad-details-inner {
+    padding: 15px 0 5px;
+    font-size: 13px;
+    color: #666;
+    line-height: 1.6;
+    font-family: 'Ubuntu', Arial, sans-serif;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.article-free-ad .free-ad-details-inner a {
+    color: #0066cc;
 }

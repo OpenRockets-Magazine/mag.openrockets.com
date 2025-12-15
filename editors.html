@@ -4,9 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Our Editors - OpenRockets Magazine</title>
+    <script>
+        // Force scroll to top immediately on page load
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+        window.scrollTo(0, 0);
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="editors-styles.css">
 </head>
@@ -21,7 +29,22 @@
                     <span class="divider">|</span>
                     <span>Subscribe</span>
                     <span class="divider">|</span>
-                    <span>Sign In</span>
+                    <button class="search-icon-btn" id="searchBtn" aria-label="Search">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Search Bar (appears below header-top when active) -->
+            <div class="search-bar" id="searchDropdown">
+                <div class="container">
+                    <div class="search-bar-inner">
+                        <i class="bi bi-search search-bar-icon"></i>
+                        <input type="text" class="search-bar-input" id="searchInput" placeholder="Search articles...">
+                        <button class="search-bar-close" id="searchClose">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="search-results" id="searchResults"></div>
                 </div>
             </div>
         </div>
@@ -33,11 +56,11 @@
                     <span></span>
                 </button>
                 <div class="logo-container">
-                    <img src="210044478.png" alt="OpenRockets" class="logo-image">
-                    <h1 class="logo"><a href="/">OpenRockets Magazine</a></h1>
-                </div>
-                <div class="header-actions">
-                    <button class="search-btn">Search</button>
+                    <a href="/" class="logo-link">
+                        <img src="./assets/images/openrockets-foundation-logo.png" alt="OpenRockets" class="logo-image">
+                        <span class="logo-divider"></span>
+                        <span class="logo-text">Magazine.</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -58,6 +81,60 @@
                 <p class="page-subtitle">Meet the editorial team behind OpenRockets Magazine</p>
             </div>
 
+            <!-- Editors Loading Skeleton -->
+            <div class="editors-loading" id="editorsLoading">
+                <div class="skeleton-editors-grid">
+                    <div class="skeleton-editor-card">
+                        <div class="skeleton-editor-photo skeleton-shimmer"></div>
+                        <div class="skeleton-editor-name skeleton-shimmer"></div>
+                        <div class="skeleton-editor-role skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                    </div>
+                    <div class="skeleton-editor-card">
+                        <div class="skeleton-editor-photo skeleton-shimmer"></div>
+                        <div class="skeleton-editor-name skeleton-shimmer"></div>
+                        <div class="skeleton-editor-role skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                    </div>
+                    <div class="skeleton-editor-card">
+                        <div class="skeleton-editor-photo skeleton-shimmer"></div>
+                        <div class="skeleton-editor-name skeleton-shimmer"></div>
+                        <div class="skeleton-editor-role skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                    </div>
+                    <div class="skeleton-editor-card">
+                        <div class="skeleton-editor-photo skeleton-shimmer"></div>
+                        <div class="skeleton-editor-name skeleton-shimmer"></div>
+                        <div class="skeleton-editor-role skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                    </div>
+                    <div class="skeleton-editor-card">
+                        <div class="skeleton-editor-photo skeleton-shimmer"></div>
+                        <div class="skeleton-editor-name skeleton-shimmer"></div>
+                        <div class="skeleton-editor-role skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                    </div>
+                    <div class="skeleton-editor-card">
+                        <div class="skeleton-editor-photo skeleton-shimmer"></div>
+                        <div class="skeleton-editor-name skeleton-shimmer"></div>
+                        <div class="skeleton-editor-role skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                        <div class="skeleton-editor-bio skeleton-shimmer"></div>
+                    </div>
+                </div>
+                <div class="loading-text">
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                    Loading editors
+                </div>
+            </div>
+
             <div class="editors-grid" id="editorsGrid">
                 <!-- Editors will be loaded dynamically from Supabase -->
             </div>
@@ -66,7 +143,7 @@
         <!-- Sponsors Section -->
         <div class="container">
             <section class="sponsors-section">
-                <h2 class="section-title">Our Sponsors</h2>
+                <h2 class="section-title sponsors-title">Sponsors</h2>
                 <div class="sponsors-grid" id="sponsorsGrid">
                     <!-- Sponsors will be loaded dynamically -->
                 </div>
@@ -77,47 +154,36 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h4>About</h4>
-                    <ul>
-                        <li><a href="/editors">Editors</a></li>
-                        <li><a href="https://x.com/openrockets" target="_blank">Contact (X)</a></li>
-                    </ul>
-                    <p class="footer-affiliation">A student-run magazine affiliated with the OpenRockets Foundation, a non-profit organization in the United States of America.</p>
-                </div>
-                <div class="footer-section">
-                    <h4>Customer Service</h4>
-                    <ul>
-                        <li><a href="#subscribe">Subscribe</a></li>
-                        <li><a href="#newsletter">Newsletters</a></li>
-                        <li><a href="#support">Customer Support</a></li>
-                        <li><a href="#feedback">Feedback</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>More</h4>
-                    <ul>
-                        <li><a href="#archive">Archive</a></li>
-                        <li><a href="#topics">Topics</a></li>
-                        <li><a href="#podcasts">Podcasts</a></li>
-                        <li><a href="#videos">Videos</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Legal</h4>
-                    <ul>
-                        <li><a href="#privacy">Privacy Policy</a></li>
-                        <li><a href="#terms">Terms of Use</a></li>
-                        <li><a href="#cookies">Cookie Policy</a></li>
-                        <li><a href="#accessibility">Accessibility</a></li>
-                    </ul>
+            <div class="footer-main">
+                <img src="./assets/images/openrockets-foundation-logo.png" alt="OpenRockets Foundation" class="footer-logo">
+                <div class="footer-links">
+                    <div class="footer-section">
+                        <h4>About</h4>
+                        <ul>
+                            <li><a href="/editors">Editors</a></li>
+                            <li><a href="https://x.com/openrockets" target="_blank" rel="noopener noreferrer">Contact</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-section">
+                        <h4>Subscribe</h4>
+                        <ul>
+                            <li><a href="#subscribe">Subscribe</a></li>
+                            <li><a href="#newsletter">Newsletters</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-section footer-social-section">
+                        <h4>Social</h4>
+                        <ul>
+                            <li><a href="https://x.com/openrockets" target="_blank" rel="noopener noreferrer" aria-label="X"><i class="bi bi-twitter-x"></i></a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2025 OpenRockets Magazine. All rights reserved.</p>
-                <div class="footer-social">
-                    <a href="https://x.com/openrockets" target="_blank" aria-label="X">X</a>
+                <p class="footer-affiliation">OpenRockets Foundation is a registered, fiscally sponsored nonprofit organization 501(c)(3) in the United States of America. &copy; 2025 OpenRockets Foundation. All rights reserved.</p>
+                <div class="footer-license">
+                    <img src="https://licensebuttons.net/l/by-sa/4.0/88x31.png" alt="CC BY-SA 4.0" class="cc-license-logo">
+                    <span>All content on this website is licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)</a>.</span>
                 </div>
             </div>
         </div>
@@ -126,5 +192,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="editors.js"></script>
+    <script src="https://openrockets.com/scripts/opennetwork-banner.min.js"></script>
 </body>
 </html>

@@ -46,6 +46,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+}
+
+.editor-photo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.editor-initials {
     font-size: 48px;
     color: #999;
     font-family: 'Playfair Display', serif;
@@ -82,5 +92,119 @@
     
     .editors-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .skeleton-editors-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Editors Loading Skeleton */
+.editors-loading {
+    min-height: 80vh;
+}
+
+.editors-loading.hidden {
+    display: none;
+}
+
+.skeleton-shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-editors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 40px;
+    margin-bottom: 40px;
+}
+
+.skeleton-editor-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    padding: 30px;
+    text-align: center;
+}
+
+.skeleton-editor-photo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    margin: 0 auto 20px;
+}
+
+.skeleton-editor-name {
+    width: 60%;
+    height: 28px;
+    margin: 0 auto 10px;
+}
+
+.skeleton-editor-role {
+    width: 40%;
+    height: 16px;
+    margin: 0 auto 20px;
+}
+
+.skeleton-editor-bio {
+    width: 100%;
+    height: 14px;
+    margin-bottom: 8px;
+}
+
+.skeleton-editor-bio:last-child {
+    width: 80%;
+}
+
+.loading-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: 'Ubuntu', sans-serif;
+    font-size: 14px;
+    color: #888;
+    padding: 20px;
+}
+
+.loading-dot {
+    width: 6px;
+    height: 6px;
+    background: #888;
+    border-radius: 50%;
+    animation: loadingDots 1.4s infinite ease-in-out both;
+}
+
+.loading-dot:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.loading-dot:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+.loading-dot:nth-child(3) {
+    animation-delay: 0s;
+}
+
+@keyframes loadingDots {
+    0%, 80%, 100% {
+        transform: scale(0.6);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
     }
 }

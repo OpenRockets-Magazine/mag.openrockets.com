@@ -39,8 +39,12 @@ CREATE TABLE IF NOT EXISTS editors (
     name TEXT NOT NULL,
     role TEXT NOT NULL,
     bio TEXT,
+    photo_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Note: If you already have the editors table, run this to add the photo_url column:
+-- ALTER TABLE editors ADD COLUMN IF NOT EXISTS photo_url TEXT;
 
 -- Create sponsors table
 CREATE TABLE IF NOT EXISTS sponsors (
@@ -176,6 +180,75 @@ INSERT INTO editors (name, role, bio) VALUES
     ('Michael Patterson', 'Technology Editor', 'Michael covers the latest developments in rocket technology and propulsion systems. He holds a degree in aerospace engineering.'),
     ('Sarah Rodriguez', 'Science Editor', 'Sarah focuses on the scientific aspects of space exploration, from planetary science to astrobiology. She completed her Ph.D. in astrophysics.')
 ON CONFLICT DO NOTHING;
+
+-- =================================================================
+-- MIGRATION: Run this if you already have existing tables
+-- =================================================================
+-- Add photo_url column to editors table if it doesn't exist
+-- ALTER TABLE editors ADD COLUMN IF NOT EXISTS photo_url TEXT;
+
+-- =================================================================
+-- Spotlight Table - Single featured banner/image with link
+-- =================================================================
+CREATE TABLE IF NOT EXISTS spotlight (
+    id BIGSERIAL PRIMARY KEY,
+    image_url TEXT NOT NULL,
+    link_url TEXT NOT NULL,
+    caption TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on spotlight
+ALTER TABLE spotlight ENABLE ROW LEVEL SECURITY;
+
+-- Spotlight policies
+CREATE POLICY "Allow public read access on spotlight" 
+ON spotlight FOR SELECT 
+USING (true);
+
+CREATE POLICY "Allow public insert on spotlight" 
+ON spotlight FOR INSERT 
+WITH CHECK (true);
+
+CREATE POLICY "Allow public update on spotlight" 
+ON spotlight FOR UPDATE 
+USING (true);
+
+CREATE POLICY "Allow public delete on spotlight" 
+ON spotlight FOR DELETE 
+USING (true);
+
+-- =================================================================
+-- Free Ads Table - Nonprofit ads displayed randomly across site
+-- =================================================================
+CREATE TABLE IF NOT EXISTS free_ads (
+    id BIGSERIAL PRIMARY KEY,
+    nonprofit_name TEXT NOT NULL,
+    image_url TEXT NOT NULL,
+    link_url TEXT NOT NULL,
+    alt_text TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on free_ads
+ALTER TABLE free_ads ENABLE ROW LEVEL SECURITY;
+
+-- Free Ads policies
+CREATE POLICY "Allow public read access on free_ads" 
+ON free_ads FOR SELECT 
+USING (true);
+
+CREATE POLICY "Allow public insert on free_ads" 
+ON free_ads FOR INSERT 
+WITH CHECK (true);
+
+CREATE POLICY "Allow public update on free_ads" 
+ON free_ads FOR UPDATE 
+USING (true);
+
+CREATE POLICY "Allow public delete on free_ads" 
+ON free_ads FOR DELETE 
+USING (true);
 
 -- Success message
 SELECT 'Database schema created successfully! You can now use the admin panel to manage content.' AS message;

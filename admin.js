@@ -1,11 +1,34 @@
 // Initialize Supabase client
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Admin credentials
-const ADMIN_PASSWORD = 'OpenRockets2025!';
+// Admin credentials (will be fetched from database)
+let ADMIN_CREDENTIALS = null;
+
+// Fetch admin credentials from database
+async function fetchAdminCredentials() {
+    try {
+        const { data, error } = await supabase
+            .from('categories')
+            .select('name')
+            .eq('slug', '__admin_config__')
+            .single();
+        
+        if (error || !data) {
+            console.error('Admin config not found. Please run setup.html first.');
+            return null;
+        }
+        
+        // Decode the credentials
+        const decoded = JSON.parse(atob(data.name));
+        return decoded;
+    } catch (error) {
+        console.error('Error fetching admin credentials:', error);
+        return null;
+    }
+}
 
 // Check if logged in
-function checkAuth() {
+async function checkAuth() {
     const isLoggedIn = localStorage.getItem('adminLoggedIn');
     if (isLoggedIn === 'true') {
         showDashboard();
@@ -28,15 +51,32 @@ function showDashboard() {
 // Login handler
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
+    const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Logging in...';
+    
+    // Fetch credentials from database
+    const creds = await fetchAdminCredentials();
+    
+    if (!creds) {
+        alert('Admin not configured. Please run setup.html first.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Login';
+        return;
+    }
 
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    if (email === creds.email && password === creds.password) {
         localStorage.setItem('adminLoggedIn', 'true');
         showDashboard();
     } else {
         alert('Invalid credentials!');
     }
+    
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Login';
 });
 
 // Logout handler
@@ -66,6 +106,8 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
 // Load all data
 async function loadAllData() {
     await loadArticles();
+    await loadSpotlight();
+    await loadFreeAds();
     await loadCategories();
     await loadAuthors();
     await loadEditors();
@@ -77,6 +119,12 @@ async function loadSectionData(section) {
     switch(section) {
         case 'articles':
             await loadArticles();
+            break;
+        case 'spotlight':
+            await loadSpotlight();
+            break;
+        case 'freeads':
+            await loadFreeAds();
             break;
         case 'categories':
             await loadCategories();
@@ -94,12 +142,17 @@ async function loadSectionData(section) {
 }
 
 // Utility function to create slug
-function createSlug(text) {
-    return text.toLowerCase()
+function createSlug(text, addUniqueSuffix = false) {
+    let slug = text.toLowerCase()
         .replace(/[^\w\s-]/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
         .trim();
+    
+    if (addUniqueSuffix) {
+        slug += '-' + Date.now().toString(36);
+    }
+    return slug;
 }
 
 // Image to Data URL converter with validation
@@ -156,8 +209,8 @@ async function loadArticles() {
                 <td>${article.authors?.name || 'N/A'}</td>
                 <td>${new Date(article.created_at).toLocaleDateString()}</td>
                 <td>
-                    <button class="btn-edit" onclick="editArticle(${article.id})">Edit</button>
-                    <button class="btn-danger" onclick="deleteArticle(${article.id})">Delete</button>
+                    <button class="btn-edit" data-action="edit" data-type="article" data-id="${article.id}">Edit</button>
+                    <button class="btn-danger" data-action="delete" data-type="article" data-id="${article.id}">Delete</button>
                 </td>
             </tr>
         `).join('');
@@ -175,11 +228,22 @@ document.getElementById('newArticleBtn').addEventListener('click', async () => {
     document.getElementById('articleModalTitle').textContent = 'New Article';
     document.getElementById('articleForm').reset();
     document.getElementById('articleId').value = '';
+    resetEditor(); // Reset the rich text editor
+    
+    // Reset date selection to today
+    document.querySelector('input[name="dateOption"][value="today"]').checked = true;
+    document.getElementById('articleCustomDate').disabled = true;
+    document.getElementById('articleCustomDate').value = '';
+    
     openModal('articleModal');
 });
 
 async function loadCategoriesForSelect() {
-    const { data, error } = await supabase.from('categories').select('*').order('name');
+    const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .neq('slug', '__admin_config__') // Exclude admin config
+        .order('name');
     if (!error && data) {
         allCategories = data;
         const select = document.getElementById('articleCategory');
@@ -194,7 +258,7 @@ async function loadAuthorsForSelect() {
         allAuthors = data;
         const select = document.getElementById('articleAuthor');
         select.innerHTML = '<option value="">Select Author</option>' + 
-            data.map(author => `<option value="${author.id}">${author.name}${author.verified ? ' ✓' : ''}</option>`).join('');
+            data.map(author => `<option value="${author.id}">${author.name}${author.verified ? ' (Verified)' : ''}</option>`).join('');
     }
 }
 
@@ -217,7 +281,32 @@ async function editArticle(id) {
         document.getElementById('articleAuthor').value = data.author_id;
         document.getElementById('articleExcerpt').value = data.excerpt || '';
         document.getElementById('articleImage').value = data.image_url || '';
-        document.getElementById('articleContent').value = data.content || '';
+        setEditorContent(data.content || ''); // Use rich text editor
+        
+        // Set date selection
+        if (data.created_at) {
+            const articleDate = new Date(data.created_at).toISOString().split('T')[0];
+            const todayDate = new Date().toISOString().split('T')[0];
+            
+            if (articleDate !== todayDate) {
+                document.querySelector('input[name="dateOption"][value="custom"]').checked = true;
+                const customDateInput = document.getElementById('articleCustomDate');
+                customDateInput.disabled = false;
+                customDateInput.value = articleDate;
+                // Set min/max dates
+                const today = new Date();
+                const sixMonthsAgo = new Date();
+                sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                customDateInput.max = today.toISOString().split('T')[0];
+                customDateInput.min = sixMonthsAgo.toISOString().split('T')[0];
+            } else {
+                document.querySelector('input[name="dateOption"][value="today"]').checked = true;
+                document.getElementById('articleCustomDate').disabled = true;
+            }
+        } else {
+            document.querySelector('input[name="dateOption"][value="today"]').checked = true;
+            document.getElementById('articleCustomDate').disabled = true;
+        }
         
         openModal('articleModal');
     } catch (error) {
@@ -254,17 +343,45 @@ document.getElementById('articleImageFile').addEventListener('change', async (e)
     }
 });
 
+// Date selection - enable/disable custom date picker
+document.querySelectorAll('input[name="dateOption"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        const customDateInput = document.getElementById('articleCustomDate');
+        if (e.target.value === 'custom') {
+            customDateInput.disabled = false;
+            // Set min/max dates (past 6 months to today)
+            const today = new Date();
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            customDateInput.max = today.toISOString().split('T')[0];
+            customDateInput.min = sixMonthsAgo.toISOString().split('T')[0];
+            // Default to today if empty
+            if (!customDateInput.value) {
+                customDateInput.value = today.toISOString().split('T')[0];
+            }
+        } else {
+            customDateInput.disabled = true;
+        }
+    });
+});
+
 document.getElementById('articleForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const id = document.getElementById('articleId').value;
     const title = document.getElementById('articleTitle').value;
-    const slug = createSlug(title);
+    const slug = createSlug(title, !id); // Add unique suffix only for new articles
     const categoryId = document.getElementById('articleCategory').value;
     const authorId = document.getElementById('articleAuthor').value;
     const excerpt = document.getElementById('articleExcerpt').value;
     const imageUrl = document.getElementById('articleImage').value;
-    const content = document.getElementById('articleContent').value;
+    const content = getEditorContent(); // Get content from rich text editor
+    
+    // Validate content
+    if (!content || content === '<br>' || content.trim() === '') {
+        alert('Please enter article content');
+        return;
+    }
     
     const articleData = {
         title,
@@ -276,6 +393,15 @@ document.getElementById('articleForm').addEventListener('submit', async (e) => {
         content,
         published: true
     };
+    
+    // Handle custom date
+    const dateOption = document.querySelector('input[name="dateOption"]:checked').value;
+    if (dateOption === 'custom') {
+        const customDate = document.getElementById('articleCustomDate').value;
+        if (customDate) {
+            articleData.created_at = new Date(customDate).toISOString();
+        }
+    }
     
     try {
         if (id) {
@@ -311,6 +437,7 @@ async function loadCategories() {
         const { data, error } = await supabase
             .from('categories')
             .select('*')
+            .neq('slug', '__admin_config__') // Exclude admin config
             .order('name');
         
         if (error) throw error;
@@ -325,8 +452,8 @@ async function loadCategories() {
                 <td><strong>${category.name}</strong></td>
                 <td>${category.slug}</td>
                 <td>
-                    <button class="btn-edit" onclick="editCategory(${category.id})">Edit</button>
-                    <button class="btn-danger" onclick="deleteCategory(${category.id})">Delete</button>
+                    <button class="btn-edit" data-action="edit" data-type="category" data-id="${category.id}">Edit</button>
+                    <button class="btn-danger" data-action="delete" data-type="category" data-id="${category.id}">Delete</button>
                 </td>
             </tr>
         `).join('');
@@ -439,11 +566,11 @@ async function loadAuthors() {
         tbody.innerHTML = data.map(author => `
             <tr>
                 <td><strong>${author.name}</strong></td>
-                <td>${author.verified ? '<span class="verified-badge">Verified</span>' : '-'}</td>
+                <td>${author.verified ? '<span class="verified-badge"><i class="bi bi-patch-check-fill"></i></span>' : '-'}</td>
                 <td>${author.bio ? author.bio.substring(0, 100) + '...' : '-'}</td>
                 <td>
-                    <button class="btn-edit" onclick="editAuthor(${author.id})">Edit</button>
-                    <button class="btn-danger" onclick="deleteAuthor(${author.id})">Delete</button>
+                    <button class="btn-edit" data-action="edit" data-type="author" data-id="${author.id}">Edit</button>
+                    <button class="btn-danger" data-action="delete" data-type="author" data-id="${author.id}">Delete</button>
                 </td>
             </tr>
         `).join('');
@@ -554,8 +681,8 @@ async function loadEditors() {
                 <td>${editor.role}</td>
                 <td>${editor.bio ? editor.bio.substring(0, 100) + '...' : '-'}</td>
                 <td>
-                    <button class="btn-edit" onclick="editEditor(${editor.id})">Edit</button>
-                    <button class="btn-danger" onclick="deleteEditor(${editor.id})">Delete</button>
+                    <button class="btn-edit" data-action="edit" data-type="editor" data-id="${editor.id}">Edit</button>
+                    <button class="btn-danger" data-action="delete" data-type="editor" data-id="${editor.id}">Delete</button>
                 </td>
             </tr>
         `).join('');
@@ -569,7 +696,22 @@ document.getElementById('newEditorBtn').addEventListener('click', () => {
     document.getElementById('editorModalTitle').textContent = 'New Editor';
     document.getElementById('editorForm').reset();
     document.getElementById('editorId').value = '';
+    document.getElementById('editorPhoto').value = '';
     openModal('editorModal');
+});
+
+// Handle editor photo upload
+document.getElementById('editorPhotoFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        try {
+            const dataURL = await imageToDataURL(file);
+            document.getElementById('editorPhoto').value = dataURL;
+        } catch (error) {
+            console.error('Error converting image:', error);
+            alert('Error processing image: ' + error.message);
+        }
+    }
 });
 
 async function editEditor(id) {
@@ -586,6 +728,7 @@ async function editEditor(id) {
         document.getElementById('editorId').value = data.id;
         document.getElementById('editorName').value = data.name;
         document.getElementById('editorRole').value = data.role;
+        document.getElementById('editorPhoto').value = data.photo_url || '';
         document.getElementById('editorBio').value = data.bio || '';
         
         openModal('editorModal');
@@ -615,9 +758,14 @@ document.getElementById('editorForm').addEventListener('submit', async (e) => {
     const id = document.getElementById('editorId').value;
     const name = document.getElementById('editorName').value;
     const role = document.getElementById('editorRole').value;
+    const photoUrl = document.getElementById('editorPhoto').value;
     const bio = document.getElementById('editorBio').value;
     
+    // Build editor data - only include photo_url if column exists in DB
     const editorData = { name, role, bio };
+    if (photoUrl) {
+        editorData.photo_url = photoUrl;
+    }
     
     try {
         if (id) {
@@ -666,8 +814,8 @@ async function loadSponsors() {
                 <td>${sponsor.logo_url ? '<img src="' + sponsor.logo_url + '" style="height: 30px; width: auto;">' : '-'}</td>
                 <td>${sponsor.url || '-'}</td>
                 <td>
-                    <button class="btn-edit" onclick="editSponsor(${sponsor.id})">Edit</button>
-                    <button class="btn-danger" onclick="deleteSponsor(${sponsor.id})">Delete</button>
+                    <button class="btn-edit" data-action="edit" data-type="sponsor" data-id="${sponsor.id}">Edit</button>
+                    <button class="btn-danger" data-action="delete" data-type="sponsor" data-id="${sponsor.id}">Delete</button>
                 </td>
             </tr>
         `).join('');
@@ -794,6 +942,500 @@ document.querySelectorAll('.modal').forEach(modal => {
             modal.classList.remove('active');
         }
     });
+});
+
+// Global click handler for edit/delete buttons using event delegation
+document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    
+    const action = btn.dataset.action;
+    const type = btn.dataset.type;
+    const id = btn.dataset.id;
+    
+    if (!action || !type || !id) return;
+    
+    if (action === 'edit') {
+        switch(type) {
+            case 'article': await editArticle(id); break;
+            case 'category': await editCategory(id); break;
+            case 'author': await editAuthor(id); break;
+            case 'editor': await editEditor(id); break;
+            case 'sponsor': await editSponsor(id); break;
+        }
+    } else if (action === 'delete') {
+        switch(type) {
+            case 'article': await deleteArticle(id); break;
+            case 'category': await deleteCategory(id); break;
+            case 'author': await deleteAuthor(id); break;
+            case 'editor': await deleteEditor(id); break;
+            case 'sponsor': await deleteSponsor(id); break;
+        }
+    }
+});
+
+// ===== RICH TEXT EDITOR =====
+const contentEditor = document.getElementById('articleContentEditor');
+const contentTextarea = document.getElementById('articleContent');
+let isHtmlView = false;
+
+// Initialize editor
+function initRichTextEditor() {
+    // Toolbar button commands
+    document.querySelectorAll('.toolbar-btn[data-command]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const command = btn.dataset.command;
+            document.execCommand(command, false, null);
+            contentEditor.focus();
+        });
+    });
+    
+    // Format block (headings)
+    document.getElementById('formatBlock').addEventListener('change', (e) => {
+        const value = e.target.value;
+        if (value) {
+            document.execCommand('formatBlock', false, value);
+        } else {
+            document.execCommand('formatBlock', false, 'p');
+        }
+        contentEditor.focus();
+        e.target.value = '';
+    });
+    
+    // Font size
+    document.getElementById('fontSize').addEventListener('change', (e) => {
+        const value = e.target.value;
+        if (value) {
+            document.execCommand('fontSize', false, value);
+        }
+        contentEditor.focus();
+        e.target.value = '';
+    });
+    
+    // Text color
+    document.getElementById('foreColor').addEventListener('input', (e) => {
+        document.execCommand('foreColor', false, e.target.value);
+        contentEditor.focus();
+    });
+    
+    // Background/highlight color
+    document.getElementById('backColor').addEventListener('input', (e) => {
+        document.execCommand('hiliteColor', false, e.target.value);
+        contentEditor.focus();
+    });
+    
+    // Insert link
+    document.getElementById('insertLinkBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = prompt('Enter URL:', 'https://');
+        if (url) {
+            document.execCommand('createLink', false, url);
+        }
+        contentEditor.focus();
+    });
+    
+    // Insert image
+    document.getElementById('insertImageBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('contentImageFile').click();
+    });
+    
+    // Handle image file selection
+    document.getElementById('contentImageFile').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            try {
+                // Validate file type
+                if (!file.type.startsWith('image/')) {
+                    alert('Please select an image file');
+                    return;
+                }
+                
+                // Validate file size (max 2MB for content images)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('Image must be less than 2MB');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const dataURL = event.target.result;
+                    // Insert image at cursor position
+                    document.execCommand('insertImage', false, dataURL);
+                    contentEditor.focus();
+                };
+                reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('Error inserting image:', error);
+                alert('Error inserting image');
+            }
+        }
+        // Reset file input
+        e.target.value = '';
+    });
+    
+    // Toggle HTML view
+    document.getElementById('toggleHtmlBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleHtmlView();
+    });
+    
+    // Sync content editor to textarea on input
+    contentEditor.addEventListener('input', () => {
+        if (!isHtmlView) {
+            contentTextarea.value = contentEditor.innerHTML;
+        }
+    });
+    
+    // Handle paste to clean up formatting
+    contentEditor.addEventListener('paste', (e) => {
+        // Allow paste but let browser handle it
+        // The content will be synced via the input event
+    });
+}
+
+// Toggle between visual editor and HTML view
+function toggleHtmlView() {
+    const toggleBtn = document.getElementById('toggleHtmlBtn');
+    
+    if (isHtmlView) {
+        // Switch to visual editor
+        contentEditor.innerHTML = contentTextarea.value;
+        contentEditor.style.display = 'block';
+        contentTextarea.style.display = 'none';
+        toggleBtn.classList.remove('active');
+        isHtmlView = false;
+    } else {
+        // Switch to HTML view
+        contentTextarea.value = contentEditor.innerHTML;
+        contentEditor.style.display = 'none';
+        contentTextarea.style.display = 'block';
+        toggleBtn.classList.add('active');
+        isHtmlView = true;
+    }
+}
+
+// Set editor content (used when editing article)
+function setEditorContent(html) {
+    contentEditor.innerHTML = html || '';
+    contentTextarea.value = html || '';
+    // Make sure we're in visual mode
+    if (isHtmlView) {
+        toggleHtmlView();
+    }
+}
+
+// Get editor content
+function getEditorContent() {
+    if (isHtmlView) {
+        return contentTextarea.value;
+    }
+    return contentEditor.innerHTML;
+}
+
+// Reset editor
+function resetEditor() {
+    contentEditor.innerHTML = '';
+    contentTextarea.value = '';
+    if (isHtmlView) {
+        toggleHtmlView();
+    }
+}
+
+// Initialize the rich text editor
+initRichTextEditor();
+
+// =================================================================
+// SPOTLIGHT MANAGEMENT
+// =================================================================
+
+async function loadSpotlight() {
+    const tbody = document.querySelector('#spotlightTable tbody');
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading spotlight...</td></tr>';
+    
+    try {
+        const { data, error } = await supabase
+            .from('spotlight')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            tbody.innerHTML = data.map(item => `
+                <tr>
+                    <td><img src="${item.image_url}" alt="Spotlight" style="max-width: 100px; max-height: 50px; object-fit: cover; border-radius: 4px;"></td>
+                    <td>${item.caption || '<em>No caption</em>'}</td>
+                    <td><a href="${item.link_url}" target="_blank" style="color: #0066cc; word-break: break-all;">${item.link_url.substring(0, 40)}...</a></td>
+                    <td>${new Date(item.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <button class="btn-edit" data-id="${item.id}">Edit</button>
+                        <button class="btn-delete" data-id="${item.id}">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="no-data">No spotlight set. Click "Set Spotlight" to create one.</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading spotlight:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="error">Error loading spotlight</td></tr>';
+    }
+}
+
+// New Spotlight button
+document.getElementById('newSpotlightBtn').addEventListener('click', () => {
+    document.getElementById('spotlightId').value = '';
+    document.getElementById('spotlightImage').value = '';
+    document.getElementById('spotlightLink').value = '';
+    document.getElementById('spotlightCaption').value = '';
+    document.getElementById('spotlightModalTitle').textContent = 'Set Spotlight';
+    openModal('spotlightModal');
+});
+
+// Spotlight form submit
+document.getElementById('spotlightForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const id = document.getElementById('spotlightId').value;
+    let imageUrl = document.getElementById('spotlightImage').value;
+    const linkUrl = document.getElementById('spotlightLink').value;
+    const caption = document.getElementById('spotlightCaption').value;
+    
+    // Handle file upload
+    const imageFile = document.getElementById('spotlightImageFile').files[0];
+    if (imageFile) {
+        try {
+            imageUrl = await imageToDataURL(imageFile);
+        } catch (error) {
+            alert(error.message);
+            return;
+        }
+    }
+    
+    if (!imageUrl || !linkUrl) {
+        alert('Image URL and Link URL are required');
+        return;
+    }
+    
+    try {
+        // Delete all existing spotlights first (only one can be active)
+        if (!id) {
+            await supabase.from('spotlight').delete().neq('id', 0);
+        }
+        
+        const spotlightData = {
+            image_url: imageUrl,
+            link_url: linkUrl,
+            caption: caption || null
+        };
+        
+        let error;
+        if (id) {
+            ({ error } = await supabase.from('spotlight').update(spotlightData).eq('id', id));
+        } else {
+            ({ error } = await supabase.from('spotlight').insert([spotlightData]));
+        }
+        
+        if (error) throw error;
+        
+        closeModal('spotlightModal');
+        await loadSpotlight();
+        document.getElementById('spotlightImageFile').value = '';
+    } catch (error) {
+        console.error('Error saving spotlight:', error);
+        alert('Error saving spotlight');
+    }
+});
+
+// Spotlight table event delegation
+document.getElementById('spotlightTable').addEventListener('click', async (e) => {
+    const target = e.target;
+    const id = target.dataset.id;
+    
+    if (!id) return;
+    
+    if (target.classList.contains('btn-edit')) {
+        // Edit spotlight
+        try {
+            const { data, error } = await supabase
+                .from('spotlight')
+                .select('*')
+                .eq('id', id)
+                .single();
+            
+            if (error) throw error;
+            
+            document.getElementById('spotlightId').value = data.id;
+            document.getElementById('spotlightImage').value = data.image_url;
+            document.getElementById('spotlightLink').value = data.link_url;
+            document.getElementById('spotlightCaption').value = data.caption || '';
+            document.getElementById('spotlightModalTitle').textContent = 'Edit Spotlight';
+            openModal('spotlightModal');
+        } catch (error) {
+            console.error('Error loading spotlight:', error);
+            alert('Error loading spotlight');
+        }
+    }
+    
+    if (target.classList.contains('btn-delete')) {
+        if (confirm('Delete this spotlight?')) {
+            try {
+                const { error } = await supabase.from('spotlight').delete().eq('id', id);
+                if (error) throw error;
+                await loadSpotlight();
+            } catch (error) {
+                console.error('Error deleting spotlight:', error);
+                alert('Error deleting spotlight');
+            }
+        }
+    }
+});
+
+// =================================================================
+// FREE ADS MANAGEMENT
+// =================================================================
+
+async function loadFreeAds() {
+    const tbody = document.querySelector('#freeAdsTable tbody');
+    tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading free ads...</td></tr>';
+    
+    try {
+        const { data, error } = await supabase
+            .from('free_ads')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            tbody.innerHTML = data.map(ad => `
+                <tr>
+                    <td>${ad.nonprofit_name}</td>
+                    <td><img src="${ad.image_url}" alt="${ad.alt_text || ad.nonprofit_name}" style="max-width: 100px; max-height: 50px; object-fit: cover; border-radius: 4px;"></td>
+                    <td><a href="${ad.link_url}" target="_blank" style="color: #0066cc; word-break: break-all;">${ad.link_url.substring(0, 40)}...</a></td>
+                    <td>
+                        <button class="btn-edit" data-id="${ad.id}">Edit</button>
+                        <button class="btn-delete" data-id="${ad.id}">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="no-data">No free ads yet. Click "New Free Ad" to create one.</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading free ads:', error);
+        tbody.innerHTML = '<tr><td colspan="4" class="error">Error loading free ads</td></tr>';
+    }
+}
+
+// New Free Ad button
+document.getElementById('newFreeAdBtn').addEventListener('click', () => {
+    document.getElementById('freeAdId').value = '';
+    document.getElementById('freeAdNonprofitName').value = '';
+    document.getElementById('freeAdImage').value = '';
+    document.getElementById('freeAdLink').value = '';
+    document.getElementById('freeAdAltText').value = '';
+    document.getElementById('freeAdModalTitle').textContent = 'New Free Ad';
+    openModal('freeAdModal');
+});
+
+// Free Ad form submit
+document.getElementById('freeAdForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const id = document.getElementById('freeAdId').value;
+    const nonprofitName = document.getElementById('freeAdNonprofitName').value;
+    let imageUrl = document.getElementById('freeAdImage').value;
+    const linkUrl = document.getElementById('freeAdLink').value;
+    const altText = document.getElementById('freeAdAltText').value;
+    
+    // Handle file upload
+    const imageFile = document.getElementById('freeAdImageFile').files[0];
+    if (imageFile) {
+        try {
+            imageUrl = await imageToDataURL(imageFile);
+        } catch (error) {
+            alert(error.message);
+            return;
+        }
+    }
+    
+    if (!nonprofitName || !imageUrl || !linkUrl) {
+        alert('Nonprofit Name, Image URL, and Link URL are required');
+        return;
+    }
+    
+    try {
+        const adData = {
+            nonprofit_name: nonprofitName,
+            image_url: imageUrl,
+            link_url: linkUrl,
+            alt_text: altText || null
+        };
+        
+        let error;
+        if (id) {
+            ({ error } = await supabase.from('free_ads').update(adData).eq('id', id));
+        } else {
+            ({ error } = await supabase.from('free_ads').insert([adData]));
+        }
+        
+        if (error) throw error;
+        
+        closeModal('freeAdModal');
+        await loadFreeAds();
+        document.getElementById('freeAdImageFile').value = '';
+    } catch (error) {
+        console.error('Error saving free ad:', error);
+        alert('Error saving free ad');
+    }
+});
+
+// Free Ads table event delegation
+document.getElementById('freeAdsTable').addEventListener('click', async (e) => {
+    const target = e.target;
+    const id = target.dataset.id;
+    
+    if (!id) return;
+    
+    if (target.classList.contains('btn-edit')) {
+        // Edit free ad
+        try {
+            const { data, error } = await supabase
+                .from('free_ads')
+                .select('*')
+                .eq('id', id)
+                .single();
+            
+            if (error) throw error;
+            
+            document.getElementById('freeAdId').value = data.id;
+            document.getElementById('freeAdNonprofitName').value = data.nonprofit_name;
+            document.getElementById('freeAdImage').value = data.image_url;
+            document.getElementById('freeAdLink').value = data.link_url;
+            document.getElementById('freeAdAltText').value = data.alt_text || '';
+            document.getElementById('freeAdModalTitle').textContent = 'Edit Free Ad';
+            openModal('freeAdModal');
+        } catch (error) {
+            console.error('Error loading free ad:', error);
+            alert('Error loading free ad');
+        }
+    }
+    
+    if (target.classList.contains('btn-delete')) {
+        if (confirm('Delete this free ad?')) {
+            try {
+                const { error } = await supabase.from('free_ads').delete().eq('id', id);
+                if (error) throw error;
+                await loadFreeAds();
+            } catch (error) {
+                console.error('Error deleting free ad:', error);
+                alert('Error deleting free ad');
+            }
+        }
+    }
 });
 
 // Initialize
