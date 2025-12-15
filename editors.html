@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenRockets Magazine - Breaking News & Analysis</title>
+    <title>Our Editors - OpenRockets Magazine</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="editors-styles.css">
 </head>
 <body>
     <!-- Header -->
@@ -33,7 +34,7 @@
                 </button>
                 <div class="logo-container">
                     <img src="210044478.png" alt="OpenRockets" class="logo-image">
-                    <h1 class="logo">OpenRockets Magazine</h1>
+                    <h1 class="logo"><a href="/">OpenRockets Magazine</a></h1>
                 </div>
                 <div class="header-actions">
                     <button class="search-btn">Search</button>
@@ -52,17 +53,18 @@
     <!-- Main Content -->
     <main class="main-content">
         <div class="container">
-            <!-- Featured Section -->
-            <section class="featured-section" id="featuredSection">
-                <!-- Articles will be loaded dynamically from Supabase -->
-            </section>
+            <div class="page-header">
+                <h1>Our Editors</h1>
+                <p class="page-subtitle">Meet the editorial team behind OpenRockets Magazine</p>
+            </div>
 
-            <!-- Article Grid -->
-            <section class="article-grid" id="articleGrid">
-                <!-- Articles will be loaded dynamically from Supabase -->
-            </section>
+            <div class="editors-grid" id="editorsGrid">
+                <!-- Editors will be loaded dynamically from Supabase -->
+            </div>
+        </div>
 
-            <!-- Sponsors Section -->
+        <!-- Sponsors Section -->
+        <div class="container">
             <section class="sponsors-section">
                 <h2 class="section-title">Our Sponsors</h2>
                 <div class="sponsors-grid" id="sponsorsGrid">
@@ -123,6 +125,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="script.js"></script>
+    <script src="editors.js"></script>
 </body>
 </html>
