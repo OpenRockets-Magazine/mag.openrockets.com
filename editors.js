@@ -1,44 +1,14 @@
 // Initialize Supabase client
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Display last release date (last time articles table was updated)
-async function displayReleaseDate() {
+// Display today's date as release date
+function displayReleaseDate() {
     const dateElement = document.getElementById('currentDate');
     if (!dateElement) return;
     
-    try {
-        // Try updated_at first, fallback to created_at
-        let { data, error } = await supabase
-            .from('articles')
-            .select('updated_at, created_at')
-            .order('updated_at', { ascending: false })
-            .limit(1);
-        
-        if (error) {
-            // If updated_at doesn't exist, try just created_at
-            const result = await supabase
-                .from('articles')
-                .select('created_at')
-                .order('created_at', { ascending: false })
-                .limit(1);
-            data = result.data;
-            error = result.error;
-        }
-        
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-            const dateStr = data[0].updated_at || data[0].created_at;
-            const lastUpdate = new Date(dateStr);
-            const options = { year: 'numeric', month: 'long', day: 'numeric' };
-            dateElement.textContent = `Release: ${lastUpdate.toLocaleDateString('en-US', options)}`;
-        } else {
-            dateElement.textContent = 'Release: —';
-        }
-    } catch (error) {
-        console.error('Error loading release date:', error);
-        dateElement.textContent = 'Release: —';
-    }
+    const today = new Date();
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    dateElement.textContent = `Release: ${today.toLocaleDateString('en-US', options)}`;
 }
 
 // Load categories for navigation
@@ -104,39 +74,8 @@ async function loadEditors() {
                 `;
             }).join('');
         } else {
-            // Show placeholder editors
-            grid.innerHTML = `
-                <div class="editor-card">
-                    <div class="editor-photo"><span class="editor-initials">JD</span></div>
-                    <h2 class="editor-name">Jane Doe</h2>
-                    <p class="editor-role">Editor-in-Chief</p>
-                    <p class="editor-bio">Jane is a seasoned journalist with over 15 years of experience covering aerospace and technology. She leads our editorial team with a commitment to rigorous, fact-based reporting.</p>
-                </div>
-                <div class="editor-card">
-                    <div class="editor-photo"><span class="editor-initials">JS</span></div>
-                    <h2 class="editor-name">John Smith</h2>
-                    <p class="editor-role">Managing Editor</p>
-                    <p class="editor-bio">John oversees daily operations and ensures our content meets the highest standards of quality and accuracy. He has a background in science communication.</p>
-                </div>
-                <div class="editor-card">
-                    <div class="editor-photo"><span class="editor-initials">EC</span></div>
-                    <h2 class="editor-name">Emily Chen</h2>
-                    <p class="editor-role">Senior Editor</p>
-                    <p class="editor-bio">Emily specializes in space policy and international cooperation. She brings a unique perspective from her work with various space agencies.</p>
-                </div>
-                <div class="editor-card">
-                    <div class="editor-photo"><span class="editor-initials">MP</span></div>
-                    <h2 class="editor-name">Michael Patterson</h2>
-                    <p class="editor-role">Technology Editor</p>
-                    <p class="editor-bio">Michael covers the latest developments in rocket technology and propulsion systems. He holds a degree in aerospace engineering.</p>
-                </div>
-                <div class="editor-card">
-                    <div class="editor-photo"><span class="editor-initials">SR</span></div>
-                    <h2 class="editor-name">Sarah Rodriguez</h2>
-                    <p class="editor-role">Science Editor</p>
-                    <p class="editor-bio">Sarah focuses on the scientific aspects of space exploration, from planetary science to astrobiology. She completed her Ph.D. in astrophysics.</p>
-                </div>
-            `;
+            // No editors in database - show message
+            grid.innerHTML = '<p style="text-align: center; color: #666; padding: 60px 20px; font-family: Ubuntu, sans-serif;">No editors have been added yet. Add editors through the admin panel.</p>';
         }
     } catch (error) {
         console.error('Error loading editors:', error);
@@ -209,6 +148,72 @@ function initMobileMenu() {
     }
 }
 
+// Load free ads (random selection)
+async function loadFreeAds() {
+    const section = document.getElementById('freeAdsSection');
+    const loading = document.getElementById('freeAdsLoading');
+    
+    if (!section) return;
+    
+    try {
+        const { data, error } = await supabase
+            .from('free_ads')
+            .select('*');
+        
+        if (error) throw error;
+        
+        // Hide loading skeleton
+        if (loading) loading.classList.add('hidden');
+        
+        if (data && data.length > 0) {
+            // Select random ad
+            const randomAd = data[Math.floor(Math.random() * data.length)];
+            renderFreeAd(section, randomAd);
+        } else {
+            // No ads - hide section
+            section.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading free ads:', error);
+        if (loading) loading.classList.add('hidden');
+        section.style.display = 'none';
+    }
+}
+
+// Render a free ad
+function renderFreeAd(container, ad) {
+    container.innerHTML = `
+        <div class="free-ad-container">
+            <a href="${ad.link_url}" class="free-ad-link" target="_blank" rel="noopener noreferrer">
+                <img src="${ad.image_url}" alt="${ad.alt_text || ad.nonprofit_name}" class="free-ad-image">
+            </a>
+            <div class="free-ad-label">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7v4M8 5v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <span>Supporting Non-profits with Free Ads</span>
+                <button class="free-ad-why" onclick="toggleFreeAdDetails(this)">Why?</button>
+            </div>
+            <div class="free-ad-details">
+                <div class="free-ad-details-inner">
+                    We support nonprofits all over the world to make a better impact on the world. OpenRockets Magazine does not publish ads from commercial companies. We only feature nonprofit organizations making a difference for free.<br><br>
+                    Want to feature your nonprofit? Send your inquiry to <a href="mailto:admin@openrockets.com">admin@openrockets.com</a>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Toggle free ad details expansion
+function toggleFreeAdDetails(btn) {
+    const details = btn.closest('.free-ad-container').querySelector('.free-ad-details');
+    if (details.classList.contains('expanded')) {
+        details.classList.remove('expanded');
+        btn.textContent = 'Why?';
+    } else {
+        details.classList.add('expanded');
+        btn.textContent = 'Hide';
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
     // Force scroll to top immediately to show skeleton loaders
@@ -222,6 +227,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     displayReleaseDate();
     await loadCategories();
     await loadEditors();
+    await loadFreeAds();
     await loadSponsors();
     initMobileMenu();
     

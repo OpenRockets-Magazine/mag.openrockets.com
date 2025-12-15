@@ -208,3 +208,40 @@
         opacity: 1;
     }
 }
+
+/* Editors Page Free Ads */
+.editors-free-ad {
+    margin-top: 60px;
+    margin-bottom: 40px;
+}
+
+.editors-free-ad .free-ad-container {
+    max-width: 100%;
+}
+
+.editors-free-ad .free-ad-image {
+    max-width: 100%;
+    max-height: 400px;
+    width: auto;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+/* Free Ads Loading Skeleton */
+.free-ads-loading {
+    padding: 20px 0;
+}
+
+.free-ads-loading.hidden {
+    display: none;
+}
+
+.skeleton-free-ad {
+    width: 100%;
+    max-width: 728px;
+    height: 200px;
+    margin: 0 auto;
+    border-radius: 8px;
+}

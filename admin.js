@@ -4,6 +4,86 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Admin credentials (will be fetched from database)
 let ADMIN_CREDENTIALS = null;
 
+// Bluesky credentials
+const BLUESKY_CONFIG = {
+    identifier: 'openrocketsmag.bsky.social',
+    appPassword: 'htsx-gpgu-uzft-gal3'
+};
+
+// Post to Bluesky
+async function postToBluesky(title, excerpt, articleUrl) {
+    try {
+        // Create session (login)
+        const loginResponse = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                identifier: BLUESKY_CONFIG.identifier,
+                password: BLUESKY_CONFIG.appPassword
+            })
+        });
+        
+        if (!loginResponse.ok) {
+            console.error('Bluesky login failed');
+            return false;
+        }
+        
+        const session = await loginResponse.json();
+        
+        // Create post text
+        const postText = `📰 ${title}\n\n${excerpt ? excerpt.substring(0, 200) + '...' : ''}\n\n🔗 ${articleUrl}`;
+        
+        // Detect link facets for rich text
+        const linkStart = postText.indexOf(articleUrl);
+        const linkEnd = linkStart + articleUrl.length;
+        
+        // Convert to byte positions (UTF-8)
+        const encoder = new TextEncoder();
+        const textBytes = encoder.encode(postText);
+        const beforeLink = encoder.encode(postText.substring(0, linkStart));
+        const linkBytes = encoder.encode(articleUrl);
+        
+        // Create post
+        const postResponse = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.accessJwt}`
+            },
+            body: JSON.stringify({
+                repo: session.did,
+                collection: 'app.bsky.feed.post',
+                record: {
+                    text: postText,
+                    facets: [{
+                        index: {
+                            byteStart: beforeLink.length,
+                            byteEnd: beforeLink.length + linkBytes.length
+                        },
+                        features: [{
+                            $type: 'app.bsky.richtext.facet#link',
+                            uri: articleUrl
+                        }]
+                    }],
+                    createdAt: new Date().toISOString()
+                }
+            })
+        });
+        
+        if (postResponse.ok) {
+            console.log('Posted to Bluesky successfully!');
+            return true;
+        } else {
+            const error = await postResponse.json();
+            console.error('Bluesky post failed:', error);
+            return false;
+        }
+    } catch (error) {
+        console.error('Error posting to Bluesky:', error);
+        return false;
+    }
+}
+
 // Fetch admin credentials from database
 async function fetchAdminCredentials() {
     try {
@@ -417,11 +497,25 @@ document.getElementById('articleForm').addEventListener('submit', async (e) => {
                 .from('articles')
                 .insert([articleData]);
             if (error) throw error;
+            
+            // Post to Bluesky for new articles (if checkbox is checked)
+            const postToBlueskyCheckbox = document.getElementById('postToBluesky');
+            if (postToBlueskyCheckbox && postToBlueskyCheckbox.checked) {
+                const articleUrl = `https://mag.openrockets.com/p/?article=${slug}`;
+                const blueskyPosted = await postToBluesky(title, excerpt, articleUrl);
+                if (blueskyPosted) {
+                    alert('Article saved and shared on Bluesky!');
+                } else {
+                    alert('Article saved! (Bluesky post failed - check console)');
+                }
+            } else {
+                alert('Article saved successfully!');
+            }
         }
         
         closeModal('articleModal');
         await loadArticles();
-        alert('Article saved successfully!');
+        if (id) alert('Article updated successfully!');
     } catch (error) {
         console.error('Error saving article:', error);
         alert('Error saving article: ' + error.message);

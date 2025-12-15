@@ -427,6 +427,20 @@ form {
     margin-right: 8px;
 }
 
+/* Checkbox label with icon */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.checkbox-label i {
+    color: #0066cc;
+    font-size: 16px;
+}
+
 /* Date Selection Styling */
 .date-selection {
     display: flex;
