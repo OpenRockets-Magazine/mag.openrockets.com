@@ -11,6 +11,54 @@
     <link rel="stylesheet" href="admin-styles.css">
 </head>
 <body>
+    <!-- Invitation Welcome Overlay -->
+    <div id="invitationOverlay" class="invitation-overlay" style="display: none;">
+        <div class="invitation-geometric">
+            <div class="inv-shape inv-circle-1"></div>
+            <div class="inv-shape inv-circle-2"></div>
+            <div class="inv-shape inv-circle-3"></div>
+            <div class="inv-shape inv-square-1"></div>
+            <div class="inv-shape inv-square-2"></div>
+            <div class="inv-shape inv-triangle-1"></div>
+            <div class="inv-shape inv-triangle-2"></div>
+            <div class="inv-shape inv-diamond-1"></div>
+            <div class="inv-shape inv-line-1"></div>
+            <div class="inv-shape inv-line-2"></div>
+            <div class="inv-shape inv-dots"></div>
+        </div>
+        <div class="invitation-content">
+            <div class="invitation-card">
+                <img src="./assets/images/openrockets-foundation-logo.png" alt="OpenRockets" class="invitation-logo">
+                <div class="invitation-header">
+                    <p class="invitation-eyebrow">You've Been Invited</p>
+                    <h1 class="invitation-title">Welcome to <em>OpenRockets Magazine</em></h1>
+                </div>
+                <div class="invitation-body">
+                    <p class="invitation-greeting" id="invitationGreeting">Welcome, <strong id="invAuthorName">Author</strong></p>
+                    <div class="invitation-verified-badge" id="invVerifiedBadge" style="display: none;">
+                        <i class="bi bi-patch-check-fill"></i>
+                        <span>Verified Author Account</span>
+                    </div>
+                    <div class="invitation-message">
+                        <p>You have been invited to join our distinguished community of writers, thinkers, and changemakers who are shaping the narrative of innovation and progress.</p>
+                        <p id="invVerifiedMessage" style="display: none;">As a verified author, you have access to exclusive features including Spotlight articles and Free Ads for nonprofits.</p>
+                    </div>
+                    <div class="invitation-mission">
+                        <h3>Our Mission</h3>
+                        <p>OpenRockets Magazine is dedicated to amplifying voices that matter—stories of innovation, humanitarian efforts, and the pursuit of knowledge that transcends boundaries.</p>
+                    </div>
+                </div>
+                <div class="invitation-footer">
+                    <p class="invitation-cta">Your credentials have been prepared. Click below to begin your journey.</p>
+                    <button id="invitationLoginBtn" class="invitation-btn">
+                        <span>Enter the Dashboard</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Login Screen -->
     <div id="loginScreen" class="login-container">
         <div class="login-box">
@@ -430,6 +478,9 @@
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn-secondary close-modal">Cancel</button>
+                    <button type="button" class="btn-invitation" id="copyInvitationBtn" style="display: none;">
+                        <i class="bi bi-link-45deg"></i> Copy Invitation Link
+                    </button>
                     <button type="submit" class="btn-primary">Save Author</button>
                 </div>
             </form>

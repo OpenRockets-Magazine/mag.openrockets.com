@@ -4,6 +4,9 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Admin credentials (will be fetched from database)
 let ADMIN_CREDENTIALS = null;
 
+// Invitation data from URL
+let invitationData = null;
+
 // Current user session
 let currentUser = {
     type: null,         // 'admin' or 'author'
@@ -12,6 +15,192 @@ let currentUser = {
     verified: false,    // author verified status
     email: null
 };
+
+// ===== INVITATION SYSTEM =====
+
+// Check for invitation link on page load
+async function checkInvitationLink() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteData = urlParams.get('invite');
+    
+    if (!inviteData) return false;
+    
+    try {
+        // Decode the invitation data
+        const decoded = JSON.parse(atob(inviteData));
+        
+        if (!decoded.email || !decoded.password) {
+            console.error('Invalid invitation data');
+            return false;
+        }
+        
+        // Fetch author details from database
+        const { data: author, error } = await supabase
+            .from('authors')
+            .select('*')
+            .eq('email', decoded.email)
+            .single();
+        
+        if (error || !author) {
+            console.error('Author not found for invitation');
+            return false;
+        }
+        
+        // Verify the password matches
+        const storedPassword = atob(author.password || '');
+        if (storedPassword !== decoded.password) {
+            console.error('Invitation credentials mismatch');
+            return false;
+        }
+        
+        // Store invitation data
+        invitationData = {
+            email: decoded.email,
+            password: decoded.password,
+            authorName: author.name,
+            verified: author.verified,
+            bio: author.bio
+        };
+        
+        // Pre-fill login form
+        document.getElementById('loginEmail').value = decoded.email;
+        document.getElementById('loginPassword').value = decoded.password;
+        
+        // Show invitation overlay
+        showInvitationOverlay(invitationData);
+        
+        // Clear the URL parameters without refreshing
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        return true;
+    } catch (error) {
+        console.error('Error processing invitation:', error);
+        return false;
+    }
+}
+
+// Show the invitation welcome overlay
+function showInvitationOverlay(data) {
+    const overlay = document.getElementById('invitationOverlay');
+    const authorNameEl = document.getElementById('invAuthorName');
+    const verifiedBadge = document.getElementById('invVerifiedBadge');
+    const verifiedMessage = document.getElementById('invVerifiedMessage');
+    
+    // Set author name
+    authorNameEl.textContent = data.authorName;
+    
+    // Show verified badge if applicable
+    if (data.verified) {
+        verifiedBadge.style.display = 'inline-flex';
+        verifiedMessage.style.display = 'block';
+    } else {
+        verifiedBadge.style.display = 'none';
+        verifiedMessage.style.display = 'none';
+    }
+    
+    // Show overlay
+    overlay.style.display = 'flex';
+    
+    // Trigger login when button clicked
+    document.getElementById('invitationLoginBtn').onclick = () => {
+        overlay.style.display = 'none';
+        // Submit the pre-filled login form
+        document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+    };
+}
+
+// Generate invitation link for an author
+function generateInvitationLink(email, password) {
+    const inviteData = btoa(JSON.stringify({ email, password }));
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?invite=${inviteData}`;
+}
+
+// Copy invitation link to clipboard
+async function copyInvitationLink() {
+    const email = document.getElementById('authorEmail').value.trim();
+    const password = document.getElementById('authorPassword').value;
+    const authorId = document.getElementById('authorId').value;
+    
+    if (!email) {
+        alert('Please enter an email for the author first.');
+        return;
+    }
+    
+    let passwordToUse = password;
+    
+    // If editing an existing author without entering new password, get from database
+    if (authorId && !password) {
+        try {
+            const { data, error } = await supabase
+                .from('authors')
+                .select('password')
+                .eq('id', authorId)
+                .single();
+            
+            if (error || !data || !data.password) {
+                alert('Please set a password for this author first.');
+                return;
+            }
+            
+            passwordToUse = atob(data.password);
+        } catch (error) {
+            alert('Error fetching author password.');
+            return;
+        }
+    }
+    
+    if (!passwordToUse) {
+        alert('Please enter a password for the author.');
+        return;
+    }
+    
+    const link = generateInvitationLink(email, passwordToUse);
+    
+    try {
+        await navigator.clipboard.writeText(link);
+        const btn = document.getElementById('copyInvitationBtn');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+        btn.classList.add('copied');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('copied');
+        }, 2000);
+    } catch (error) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = link;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        alert('Invitation link copied to clipboard!');
+    }
+}
+
+// Initialize copy button
+document.getElementById('copyInvitationBtn')?.addEventListener('click', copyInvitationLink);
+
+// Show/hide copy invitation button based on email field
+function updateInvitationButtonVisibility() {
+    const emailField = document.getElementById('authorEmail');
+    const copyBtn = document.getElementById('copyInvitationBtn');
+    const authorId = document.getElementById('authorId').value;
+    
+    if (copyBtn) {
+        // Show button when editing existing author with email OR when email is entered
+        if ((authorId && emailField.value.trim()) || emailField.value.trim()) {
+            copyBtn.style.display = 'inline-flex';
+        } else {
+            copyBtn.style.display = 'none';
+        }
+    }
+}
+
+// Listen for changes to email field
+document.getElementById('authorEmail')?.addEventListener('input', updateInvitationButtonVisibility);
 
 // Bluesky credentials
 const BLUESKY_CONFIG = {
@@ -827,6 +1016,7 @@ async function loadAuthors() {
                     <td>${hasLogin ? `<span style="color: #28a745;"><i class="bi bi-key-fill"></i> ${author.email}</span>` : '<span style="color: #999;">No login</span>'}</td>
                     <td>${author.bio ? author.bio.substring(0, 80) + '...' : '-'}</td>
                     <td>
+                        ${hasLogin ? `<button class="btn-invite" data-action="invite" data-email="${author.email}" data-password="${author.password}" title="Copy invitation link"><i class="bi bi-link-45deg"></i></button>` : ''}
                         <button class="btn-edit" data-action="edit" data-type="author" data-id="${author.id}">Edit</button>
                         <button class="btn-danger" data-action="delete" data-type="author" data-id="${author.id}">Delete</button>
                     </td>
@@ -845,6 +1035,9 @@ document.getElementById('newAuthorBtn').addEventListener('click', () => {
     document.getElementById('authorId').value = '';
     document.getElementById('authorEmail').value = '';
     document.getElementById('authorPassword').value = '';
+    // Hide copy button for new authors
+    const copyBtn = document.getElementById('copyInvitationBtn');
+    if (copyBtn) copyBtn.style.display = 'none';
     openModal('authorModal');
 });
 
@@ -865,6 +1058,12 @@ async function editAuthor(id) {
         document.getElementById('authorVerified').checked = data.verified || false;
         document.getElementById('authorEmail').value = data.email || '';
         document.getElementById('authorPassword').value = ''; // Don't show password, leave blank to keep current
+        
+        // Show copy invitation button if author has login credentials
+        const copyBtn = document.getElementById('copyInvitationBtn');
+        if (copyBtn) {
+            copyBtn.style.display = (data.email && data.password) ? 'inline-flex' : 'none';
+        }
         
         openModal('authorModal');
     } catch (error) {
@@ -1227,6 +1426,36 @@ document.addEventListener('click', async function(e) {
     const action = btn.dataset.action;
     const type = btn.dataset.type;
     const id = btn.dataset.id;
+    
+    // Handle invite button separately
+    if (action === 'invite') {
+        const email = btn.dataset.email;
+        const password = atob(btn.dataset.password);
+        const link = generateInvitationLink(email, password);
+        
+        try {
+            await navigator.clipboard.writeText(link);
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+            btn.style.background = '#10b981';
+            btn.style.color = 'white';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.background = '';
+                btn.style.color = '';
+            }, 2000);
+        } catch (error) {
+            const textarea = document.createElement('textarea');
+            textarea.value = link;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Invitation link copied!');
+        }
+        return;
+    }
     
     if (!action || !type || !id) return;
     
@@ -1714,4 +1943,10 @@ document.getElementById('freeAdsTable').addEventListener('click', async (e) => {
 });
 
 // Initialize
-checkAuth();
+(async () => {
+    // Check for invitation link first
+    await checkInvitationLink();
+    
+    // Then check normal auth
+    checkAuth();
+})();
