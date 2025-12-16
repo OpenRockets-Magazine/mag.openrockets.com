@@ -4,6 +4,15 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Admin credentials (will be fetched from database)
 let ADMIN_CREDENTIALS = null;
 
+// Current user session
+let currentUser = {
+    type: null,         // 'admin' or 'author'
+    id: null,           // author ID if type is 'author'
+    name: null,         // author name if type is 'author'
+    verified: false,    // author verified status
+    email: null
+};
+
 // Bluesky credentials
 const BLUESKY_CONFIG = {
     identifier: 'openrocketsmag.bsky.social',
@@ -110,7 +119,18 @@ async function fetchAdminCredentials() {
 // Check if logged in
 async function checkAuth() {
     const isLoggedIn = localStorage.getItem('adminLoggedIn');
+    const userType = localStorage.getItem('userType');
+    const authorId = localStorage.getItem('authorId');
+    const authorName = localStorage.getItem('authorName');
+    const authorVerified = localStorage.getItem('authorVerified') === 'true';
+    
     if (isLoggedIn === 'true') {
+        currentUser.type = userType || 'admin';
+        if (userType === 'author') {
+            currentUser.id = authorId;
+            currentUser.name = authorName;
+            currentUser.verified = authorVerified;
+        }
         showDashboard();
     } else {
         showLogin();
@@ -125,7 +145,61 @@ function showLogin() {
 function showDashboard() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminDashboard').style.display = 'flex';
+    
+    // Apply role-based UI restrictions
+    applyRoleRestrictions();
+    
     loadAllData();
+}
+
+// Apply role-based UI restrictions
+function applyRoleRestrictions() {
+    const isAdmin = currentUser.type === 'admin';
+    const isVerifiedAuthor = currentUser.type === 'author' && currentUser.verified;
+    
+    // Update sidebar header for authors
+    const sidebarHeader = document.querySelector('.sidebar-header h2');
+    if (currentUser.type === 'author') {
+        const verifiedBadge = currentUser.verified 
+            ? '<svg style="width: 14px; height: 14px; fill: #1DA1F2; vertical-align: middle; margin-left: 4px;" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/></svg>'
+            : '';
+        sidebarHeader.innerHTML = `Author Panel<br><span style="font-size: 13px; font-family: 'Ubuntu', sans-serif; opacity: 0.85; font-weight: 400;">${currentUser.name}${verifiedBadge}</span>`;
+    } else {
+        sidebarHeader.textContent = 'Admin Panel';
+    }
+    
+    // Hide/show nav buttons based on role
+    document.querySelectorAll('.nav-btn[data-role="admin-only"]').forEach(btn => {
+        btn.style.display = isAdmin ? 'block' : 'none';
+    });
+    
+    document.querySelectorAll('.nav-btn[data-role="verified-author"]').forEach(btn => {
+        btn.style.display = (isAdmin || isVerifiedAuthor) ? 'block' : 'none';
+    });
+    
+    // Show author welcome message
+    const authorWelcome = document.getElementById('authorWelcome');
+    const verifiedNote = document.getElementById('verifiedNote');
+    if (currentUser.type === 'author' && authorWelcome) {
+        authorWelcome.style.display = 'block';
+        if (verifiedNote) {
+            verifiedNote.textContent = currentUser.verified 
+                ? 'As a verified author, you can also create Spotlights and Free Ads!'
+                : 'Contact the admin to get verified for additional features.';
+        }
+    } else if (authorWelcome) {
+        authorWelcome.style.display = 'none';
+    }
+}
+
+// Check if current user can edit/delete articles
+function canEditArticles() {
+    return currentUser.type === 'admin';
+}
+
+// Check if current user can create spotlights/free ads
+function canCreateSpotlightAndAds() {
+    return currentUser.type === 'admin' || (currentUser.type === 'author' && currentUser.verified);
 }
 
 // Login handler
@@ -138,30 +212,85 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Logging in...';
     
-    // Fetch credentials from database
-    const creds = await fetchAdminCredentials();
+    // First, try admin credentials
+    const adminCreds = await fetchAdminCredentials();
     
-    if (!creds) {
-        alert('Admin not configured. Please run setup.html first.');
+    if (adminCreds && email === adminCreds.email && password === adminCreds.password) {
+        // Admin login successful
+        currentUser = { type: 'admin', id: null, name: 'Administrator', verified: true, email: email };
+        localStorage.setItem('adminLoggedIn', 'true');
+        localStorage.setItem('userType', 'admin');
+        localStorage.removeItem('authorId');
+        localStorage.removeItem('authorName');
+        localStorage.removeItem('authorVerified');
         submitBtn.disabled = false;
         submitBtn.textContent = 'Login';
+        showDashboard();
         return;
     }
-
-    if (email === creds.email && password === creds.password) {
+    
+    // Try author credentials
+    const author = await checkAuthorCredentials(email, password);
+    
+    if (author) {
+        // Author login successful
+        currentUser = { 
+            type: 'author', 
+            id: author.id, 
+            name: author.name, 
+            verified: author.verified,
+            email: email 
+        };
         localStorage.setItem('adminLoggedIn', 'true');
+        localStorage.setItem('userType', 'author');
+        localStorage.setItem('authorId', author.id);
+        localStorage.setItem('authorName', author.name);
+        localStorage.setItem('authorVerified', author.verified.toString());
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Login';
         showDashboard();
-    } else {
-        alert('Invalid credentials!');
+        return;
     }
     
+    // Neither admin nor author
+    alert('Invalid credentials!');
     submitBtn.disabled = false;
     submitBtn.textContent = 'Login';
 });
 
+// Check author credentials
+async function checkAuthorCredentials(email, password) {
+    try {
+        const { data, error } = await supabase
+            .from('authors')
+            .select('id, name, verified, email, password')
+            .eq('email', email)
+            .single();
+        
+        if (error || !data) return null;
+        
+        // Password is stored as base64
+        const storedPassword = atob(data.password || '');
+        
+        if (storedPassword === password) {
+            return { id: data.id, name: data.name, verified: data.verified };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error checking author credentials:', error);
+        return null;
+    }
+}
+
 // Logout handler
 document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.removeItem('adminLoggedIn');
+    localStorage.removeItem('userType');
+    localStorage.removeItem('authorId');
+    localStorage.removeItem('authorName');
+    localStorage.removeItem('authorVerified');
+    currentUser = { type: null, id: null, name: null, verified: false, email: null };
     showLogin();
 });
 
@@ -282,6 +411,9 @@ async function loadArticles() {
             return;
         }
         
+        // Check if user can edit/delete
+        const canEdit = canEditArticles();
+        
         tbody.innerHTML = data.map(article => `
             <tr>
                 <td><strong>${article.title}</strong></td>
@@ -289,8 +421,12 @@ async function loadArticles() {
                 <td>${article.authors?.name || 'N/A'}</td>
                 <td>${new Date(article.created_at).toLocaleDateString()}</td>
                 <td>
-                    <button class="btn-edit" data-action="edit" data-type="article" data-id="${article.id}">Edit</button>
-                    <button class="btn-danger" data-action="delete" data-type="article" data-id="${article.id}">Delete</button>
+                    ${canEdit ? `
+                        <button class="btn-edit" data-action="edit" data-type="article" data-id="${article.id}">Edit</button>
+                        <button class="btn-danger" data-action="delete" data-type="article" data-id="${article.id}">Delete</button>
+                    ` : `
+                        <span style="color: #999; font-size: 12px;">View only</span>
+                    `}
                 </td>
             </tr>
         `).join('');
@@ -314,6 +450,15 @@ document.getElementById('newArticleBtn').addEventListener('click', async () => {
     document.querySelector('input[name="dateOption"][value="today"]').checked = true;
     document.getElementById('articleCustomDate').disabled = true;
     document.getElementById('articleCustomDate').value = '';
+    
+    // For author users, auto-select and lock their author
+    if (currentUser.type === 'author' && currentUser.id) {
+        const authorSelect = document.getElementById('articleAuthor');
+        authorSelect.value = currentUser.id;
+        authorSelect.disabled = true; // Authors can only post as themselves
+    } else {
+        document.getElementById('articleAuthor').disabled = false;
+    }
     
     openModal('articleModal');
 });
@@ -396,6 +541,12 @@ async function editArticle(id) {
 }
 
 async function deleteArticle(id) {
+    // Only admin can delete
+    if (currentUser.type !== 'admin') {
+        alert('You do not have permission to delete articles.');
+        return;
+    }
+    
     if (!confirm('Are you sure you want to delete this article?')) return;
     
     try {
@@ -452,7 +603,13 @@ document.getElementById('articleForm').addEventListener('submit', async (e) => {
     const title = document.getElementById('articleTitle').value;
     const slug = createSlug(title, !id); // Add unique suffix only for new articles
     const categoryId = document.getElementById('articleCategory').value;
-    const authorId = document.getElementById('articleAuthor').value;
+    
+    // For author users, force their own author ID
+    let authorId = document.getElementById('articleAuthor').value;
+    if (currentUser.type === 'author' && currentUser.id) {
+        authorId = currentUser.id;
+    }
+    
     const excerpt = document.getElementById('articleExcerpt').value;
     const imageUrl = document.getElementById('articleImage').value;
     const content = getEditorContent(); // Get content from rich text editor
@@ -485,7 +642,11 @@ document.getElementById('articleForm').addEventListener('submit', async (e) => {
     
     try {
         if (id) {
-            // Update existing article
+            // Update existing article - only admin can do this
+            if (currentUser.type !== 'admin') {
+                alert('You do not have permission to edit articles.');
+                return;
+            }
             const { error } = await supabase
                 .from('articles')
                 .update(articleData)
@@ -642,7 +803,7 @@ document.getElementById('categoryForm').addEventListener('submit', async (e) => 
 // ===== AUTHORS =====
 async function loadAuthors() {
     const tbody = document.querySelector('#authorsTable tbody');
-    tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading authors</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading authors</td></tr>';
     
     try {
         const { data, error } = await supabase
@@ -653,24 +814,28 @@ async function loadAuthors() {
         if (error) throw error;
         
         if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: #999;">No authors yet. Create your first author!</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: #999;">No authors yet. Create your first author!</td></tr>';
             return;
         }
         
-        tbody.innerHTML = data.map(author => `
-            <tr>
-                <td><strong>${author.name}</strong></td>
-                <td>${author.verified ? '<span class="verified-badge"><i class="bi bi-patch-check-fill"></i></span>' : '-'}</td>
-                <td>${author.bio ? author.bio.substring(0, 100) + '...' : '-'}</td>
-                <td>
-                    <button class="btn-edit" data-action="edit" data-type="author" data-id="${author.id}">Edit</button>
-                    <button class="btn-danger" data-action="delete" data-type="author" data-id="${author.id}">Delete</button>
-                </td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = data.map(author => {
+            const hasLogin = author.email && author.password;
+            return `
+                <tr>
+                    <td><strong>${author.name}</strong></td>
+                    <td>${author.verified ? '<span class="verified-badge"><i class="bi bi-patch-check-fill"></i></span>' : '-'}</td>
+                    <td>${hasLogin ? `<span style="color: #28a745;"><i class="bi bi-key-fill"></i> ${author.email}</span>` : '<span style="color: #999;">No login</span>'}</td>
+                    <td>${author.bio ? author.bio.substring(0, 80) + '...' : '-'}</td>
+                    <td>
+                        <button class="btn-edit" data-action="edit" data-type="author" data-id="${author.id}">Edit</button>
+                        <button class="btn-danger" data-action="delete" data-type="author" data-id="${author.id}">Delete</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     } catch (error) {
         console.error('Error loading authors:', error);
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">Error loading authors</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Error loading authors</td></tr>';
     }
 }
 
@@ -678,6 +843,8 @@ document.getElementById('newAuthorBtn').addEventListener('click', () => {
     document.getElementById('authorModalTitle').textContent = 'New Author';
     document.getElementById('authorForm').reset();
     document.getElementById('authorId').value = '';
+    document.getElementById('authorEmail').value = '';
+    document.getElementById('authorPassword').value = '';
     openModal('authorModal');
 });
 
@@ -696,6 +863,8 @@ async function editAuthor(id) {
         document.getElementById('authorName').value = data.name;
         document.getElementById('authorBio').value = data.bio || '';
         document.getElementById('authorVerified').checked = data.verified || false;
+        document.getElementById('authorEmail').value = data.email || '';
+        document.getElementById('authorPassword').value = ''; // Don't show password, leave blank to keep current
         
         openModal('authorModal');
     } catch (error) {
@@ -725,8 +894,20 @@ document.getElementById('authorForm').addEventListener('submit', async (e) => {
     const name = document.getElementById('authorName').value;
     const bio = document.getElementById('authorBio').value;
     const verified = document.getElementById('authorVerified').checked;
+    const email = document.getElementById('authorEmail').value.trim();
+    const password = document.getElementById('authorPassword').value;
     
     const authorData = { name, bio, verified };
+    
+    // Add email if provided
+    if (email) {
+        authorData.email = email;
+    }
+    
+    // Add password if provided (store as base64)
+    if (password) {
+        authorData.password = btoa(password);
+    }
     
     try {
         if (id) {

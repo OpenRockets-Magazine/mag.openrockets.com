@@ -26,7 +26,7 @@
                 <div class="header-weather">
                     <a href="/admin.html"><span>Admin Login</span></a>
                     <span class="divider">|</span>
-                    <span>Subscribe</span>
+                    <a href="#subscribe" class="subscribe-link"><span>Subscribe</span></a>
                     <span class="divider">|</span>
                     <button class="search-icon-btn" id="searchBtn" aria-label="Search">
                         <i class="bi bi-search"></i>
@@ -244,6 +244,52 @@
                 <!-- Free ads will be loaded dynamically -->
             </section>
         </div>
+
+        <!-- Newsletter Subscribe Section -->
+        <section class="newsletter-section" id="subscribe">
+            <div class="newsletter-card">
+                <div class="newsletter-geometric">
+                    <div class="geo-shape geo-1"></div>
+                    <div class="geo-shape geo-2"></div>
+                    <div class="geo-shape geo-3"></div>
+                    <div class="geo-shape geo-4"></div>
+                    <div class="geo-shape geo-5"></div>
+                    <div class="geo-shape geo-6"></div>
+                </div>
+                <div class="newsletter-content">
+                    <h2>Stay Updated</h2>
+                    <p>Get the latest articles and updates delivered straight to your inbox. Join our community of readers.</p>
+                    <form class="newsletter-form" onsubmit="subscribeNewsletter(event)">
+                        <input type="email" placeholder="Enter your email" required>
+                        <select required>
+                            <option value="">Select your country</option>
+                            <option value="US">United States</option>
+                            <option value="GB">United Kingdom</option>
+                            <option value="CA">Canada</option>
+                            <option value="AU">Australia</option>
+                            <option value="DE">Germany</option>
+                            <option value="FR">France</option>
+                            <option value="IN">India</option>
+                            <option value="JP">Japan</option>
+                            <option value="BR">Brazil</option>
+                            <option value="MX">Mexico</option>
+                            <option value="ES">Spain</option>
+                            <option value="IT">Italy</option>
+                            <option value="NL">Netherlands</option>
+                            <option value="SE">Sweden</option>
+                            <option value="PL">Poland</option>
+                            <option value="NG">Nigeria</option>
+                            <option value="ZA">South Africa</option>
+                            <option value="KE">Kenya</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                        <button type="submit">Subscribe Now</button>
+                    </form>
+                    <div class="newsletter-success"></div>
+                    <div class="newsletter-error"></div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- Footer -->

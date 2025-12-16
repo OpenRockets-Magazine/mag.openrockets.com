@@ -34,12 +34,12 @@
             </div>
             <nav class="sidebar-nav">
                 <button class="nav-btn active" data-section="articles">Articles</button>
-                <button class="nav-btn" data-section="spotlight">Spotlight</button>
-                <button class="nav-btn" data-section="freeads">Free Ads</button>
-                <button class="nav-btn" data-section="categories">Categories</button>
-                <button class="nav-btn" data-section="authors">Authors</button>
-                <button class="nav-btn" data-section="editors">Editors</button>
-                <button class="nav-btn" data-section="sponsors">Sponsors</button>
+                <button class="nav-btn" data-section="spotlight" data-role="verified-author">Spotlight</button>
+                <button class="nav-btn" data-section="freeads" data-role="verified-author">Free Ads</button>
+                <button class="nav-btn" data-section="categories" data-role="admin-only">Categories</button>
+                <button class="nav-btn" data-section="authors" data-role="admin-only">Authors</button>
+                <button class="nav-btn" data-section="editors" data-role="admin-only">Editors</button>
+                <button class="nav-btn" data-section="sponsors" data-role="admin-only">Sponsors</button>
             </nav>
             <button id="logoutBtn" class="logout-btn">Logout</button>
         </aside>
@@ -50,6 +50,10 @@
                 <div class="section-header">
                     <h1>Articles</h1>
                     <button class="btn-primary" id="newArticleBtn">New Article</button>
+                </div>
+                <!-- Author welcome message (shown only for author users) -->
+                <div id="authorWelcome" class="author-welcome" style="display: none; background: #f8f9fa; border: 1px solid #e0e0e0; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
+                    <p style="margin: 0; font-family: 'Ubuntu', sans-serif; font-size: 14px; color: #555;"><i class="bi bi-info-circle" style="color: #0066cc;"></i> You can create new articles here. Your articles will be published under your name. <span id="verifiedNote" style="color: #666;"></span></p>
                 </div>
                 <div class="table-container">
                     <table id="articlesTable">
@@ -142,12 +146,16 @@
                     <h1>Authors</h1>
                     <button class="btn-primary" id="newAuthorBtn">New Author</button>
                 </div>
+                <div class="author-info" style="background: #e8f4fd; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+                    <p style="margin: 0;"><i class="bi bi-info-circle"></i> Authors with login credentials can access the panel to create articles. <strong>Verified</strong> authors can also create Spotlights & Free Ads.</p>
+                </div>
                 <div class="table-container">
                     <table id="authorsTable">
                         <thead>
                             <tr>
                                 <th>Name</th>
                                 <th>Verified</th>
+                                <th>Login</th>
                                 <th>Bio</th>
                                 <th>Actions</th>
                             </tr>
@@ -402,8 +410,23 @@
                 <div class="form-group">
                     <label>
                         <input type="checkbox" id="authorVerified">
-                        Verified Author
+                        Verified Author <small>(Can create Spotlights & Free Ads)</small>
                     </label>
+                </div>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+                <div class="form-group">
+                    <label><i class="bi bi-person-badge"></i> Author Login Credentials <small>(Optional - for author dashboard access)</small></label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Login Email</label>
+                        <input type="email" id="authorEmail" placeholder="author@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="authorPassword" placeholder="Leave blank to keep current">
+                        <small>Authors can login to create articles</small>
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn-secondary close-modal">Cancel</button>

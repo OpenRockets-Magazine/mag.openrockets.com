@@ -214,6 +214,101 @@ function toggleFreeAdDetails(btn) {
     }
 }
 
+// Newsletter subscription handler
+async function subscribeNewsletter(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const emailInput = form.querySelector('input[type="email"]');
+    const countrySelect = form.querySelector('select');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const successMsg = document.querySelector('.newsletter-success');
+    const errorMsg = document.querySelector('.newsletter-error');
+    
+    const email = emailInput.value.trim();
+    const country = countrySelect.value;
+    
+    // Reset messages
+    if (successMsg) successMsg.classList.remove('show');
+    if (errorMsg) errorMsg.classList.remove('show');
+    
+    // Validate
+    if (!email) {
+        showNewsletterError('Please enter your email address.');
+        return;
+    }
+    
+    if (!country) {
+        showNewsletterError('Please select your country.');
+        return;
+    }
+    
+    // Disable button
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Subscribing...';
+    
+    try {
+        // Check if already subscribed
+        const { data: existing } = await supabase
+            .from('subscribers')
+            .select('id, is_active')
+            .eq('email', email)
+            .single();
+        
+        if (existing) {
+            if (existing.is_active) {
+                showNewsletterError('You are already subscribed!');
+            } else {
+                // Reactivate subscription
+                await supabase
+                    .from('subscribers')
+                    .update({ is_active: true, country: country })
+                    .eq('id', existing.id);
+                showNewsletterSuccess('Welcome back! Your subscription has been reactivated.');
+                form.reset();
+            }
+        } else {
+            // New subscriber
+            const { error } = await supabase
+                .from('subscribers')
+                .insert({
+                    email: email,
+                    country: country,
+                    subscription_type: 'email',
+                    is_active: true
+                });
+            
+            if (error) throw error;
+            
+            showNewsletterSuccess('Thanks for subscribing! Stay tuned for updates.');
+            form.reset();
+        }
+    } catch (error) {
+        console.error('Subscription error:', error);
+        showNewsletterError('Something went wrong. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
+function showNewsletterSuccess(message) {
+    const successMsg = document.querySelector('.newsletter-success');
+    if (successMsg) {
+        successMsg.textContent = message;
+        successMsg.classList.add('show');
+    }
+}
+
+function showNewsletterError(message) {
+    const errorMsg = document.querySelector('.newsletter-error');
+    if (errorMsg) {
+        errorMsg.textContent = message;
+        errorMsg.classList.add('show');
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
     // Force scroll to top immediately to show skeleton loaders

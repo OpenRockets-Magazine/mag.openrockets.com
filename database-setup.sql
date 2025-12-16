@@ -15,8 +15,13 @@ CREATE TABLE IF NOT EXISTS authors (
     name TEXT NOT NULL,
     bio TEXT,
     verified BOOLEAN DEFAULT FALSE,
+    email TEXT UNIQUE,
+    password TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Create index for author email lookups
+CREATE INDEX IF NOT EXISTS idx_authors_email ON authors(email);
 
 -- Create articles table
 CREATE TABLE IF NOT EXISTS articles (
@@ -252,3 +257,40 @@ USING (true);
 
 -- Success message
 SELECT 'Database schema created successfully! You can now use the admin panel to manage content.' AS message;
+
+-- =================================================================
+-- Newsletter Subscribers Table
+-- =================================================================
+CREATE TABLE IF NOT EXISTS subscribers (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT UNIQUE,
+    phone TEXT,
+    country TEXT,
+    subscription_type TEXT DEFAULT 'email', -- 'email', 'sms', or 'both'
+    subscribed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+-- Enable RLS on subscribers
+ALTER TABLE subscribers ENABLE ROW LEVEL SECURITY;
+
+-- Subscribers policies
+CREATE POLICY "Allow public insert on subscribers" 
+ON subscribers FOR INSERT 
+WITH CHECK (true);
+
+CREATE POLICY "Allow public read on subscribers" 
+ON subscribers FOR SELECT 
+USING (true);
+
+CREATE POLICY "Allow public update on subscribers" 
+ON subscribers FOR UPDATE 
+USING (true);
+
+CREATE POLICY "Allow public delete on subscribers" 
+ON subscribers FOR DELETE 
+USING (true);
+
+-- Create index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers(email);
+CREATE INDEX IF NOT EXISTS idx_subscribers_phone ON subscribers(phone);

@@ -96,6 +96,17 @@ a:hover {
     color: #ccc;
 }
 
+/* Subscribe Link in Header */
+.subscribe-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.subscribe-link:hover {
+    color: #e94560;
+}
+
 /* Search Icon Button */
 .search-icon-btn {
     background: none;
@@ -1491,5 +1502,270 @@ a:hover {
     
     .free-ad-details-inner {
         font-size: 12px;
+    }
+}
+
+/* ===== Newsletter Section ===== */
+.newsletter-section {
+    padding: 60px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.newsletter-card {
+    position: relative;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-radius: 20px;
+    padding: 50px 40px;
+    max-width: 500px;
+    width: 100%;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.newsletter-geometric {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.geo-shape {
+    position: absolute;
+    opacity: 0.15;
+}
+
+/* Triangle - top right */
+.geo-1 {
+    top: -30px;
+    right: -30px;
+    width: 0;
+    height: 0;
+    border-left: 100px solid transparent;
+    border-right: 100px solid transparent;
+    border-bottom: 173px solid #e94560;
+    transform: rotate(30deg);
+}
+
+/* Circle - bottom left */
+.geo-2 {
+    bottom: -40px;
+    left: -40px;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #00d9ff, #0099ff);
+}
+
+/* Diamond - top left */
+.geo-3 {
+    top: 40px;
+    left: -20px;
+    width: 60px;
+    height: 60px;
+    background: #ffd700;
+    transform: rotate(45deg);
+}
+
+/* Small circles - scattered */
+.geo-4 {
+    top: 30%;
+    right: 20px;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    border: 3px solid #e94560;
+    background: transparent;
+}
+
+.geo-5 {
+    bottom: 30%;
+    left: 30%;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #00d9ff;
+}
+
+/* Hexagon-ish shape */
+.geo-6 {
+    top: 20px;
+    right: 30%;
+    width: 40px;
+    height: 23px;
+    background: #ffd700;
+    position: absolute;
+}
+
+.geo-6::before,
+.geo-6::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+}
+
+.geo-6::before {
+    bottom: 100%;
+    border-bottom: 11px solid #ffd700;
+}
+
+.geo-6::after {
+    top: 100%;
+    border-top: 11px solid #ffd700;
+}
+
+.newsletter-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+}
+
+.newsletter-content h2 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 28px;
+    color: #ffffff;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.newsletter-content p {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 15px;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.newsletter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.newsletter-form input[type="email"] {
+    padding: 15px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    outline: none;
+    transition: box-shadow 0.3s ease;
+}
+
+.newsletter-form input[type="email"]:focus {
+    box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.3);
+}
+
+.newsletter-form input[type="email"]::placeholder {
+    color: #888;
+}
+
+.newsletter-form select {
+    padding: 15px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    outline: none;
+    cursor: pointer;
+    transition: box-shadow 0.3s ease;
+}
+
+.newsletter-form select:focus {
+    box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.3);
+}
+
+.newsletter-form button {
+    padding: 15px 30px;
+    background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    font-family: 'Ubuntu', sans-serif;
+}
+
+.newsletter-form button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(233, 69, 96, 0.4);
+}
+
+.newsletter-form button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.newsletter-success {
+    background: rgba(46, 204, 113, 0.2);
+    border: 1px solid #2ecc71;
+    border-radius: 10px;
+    padding: 15px;
+    color: #2ecc71;
+    text-align: center;
+    margin-top: 15px;
+    display: none;
+}
+
+.newsletter-success.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.newsletter-error {
+    background: rgba(233, 69, 96, 0.2);
+    border: 1px solid #e94560;
+    border-radius: 10px;
+    padding: 15px;
+    color: #e94560;
+    text-align: center;
+    margin-top: 15px;
+    display: none;
+}
+
+.newsletter-error.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Newsletter responsive */
+@media (max-width: 600px) {
+    .newsletter-card {
+        padding: 40px 25px;
+        margin: 0 15px;
+    }
+    
+    .newsletter-content h2 {
+        font-size: 24px;
+    }
+    
+    .newsletter-content p {
+        font-size: 14px;
+    }
+    
+    .geo-1 {
+        border-left-width: 60px;
+        border-right-width: 60px;
+        border-bottom-width: 104px;
+    }
+    
+    .geo-2 {
+        width: 100px;
+        height: 100px;
     }
 }
