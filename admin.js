@@ -1,5 +1,10 @@
-// Initialize Supabase client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize Supabase client (shared global to avoid redeclaration across scripts)
+if (typeof window.supabaseClient === 'undefined') {
+    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+if (typeof window.supabase === 'undefined') {
+    window.supabase = window.supabaseClient;
+}
 
 // Admin credentials (will be fetched from database)
 let ADMIN_CREDENTIALS = null;
