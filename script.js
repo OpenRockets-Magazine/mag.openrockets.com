@@ -1,6 +1,11 @@
 // Initialize Supabase client
-if (typeof supabase === 'undefined') {
-    var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (typeof supabase === 'undefined' || typeof supabase.from !== 'function') {
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+        // Supabase library not loaded yet — set placeholder and try to initialize later
+        var supabase = null;
+    }
 }
 
 // Display today's date as release date

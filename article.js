@@ -1,6 +1,10 @@
 // Initialize Supabase client
-if (typeof supabase === 'undefined') {
-    var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (typeof supabase === 'undefined' || typeof supabase.from !== 'function') {
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+        var supabase = null;
+    }
 }
 
 // Get article slug from URL query parameter
