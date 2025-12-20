@@ -1,10 +1,5 @@
-// Initialize Supabase client (shared global to avoid redeclaration across scripts)
-if (typeof window.supabaseClient === 'undefined') {
-    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
-if (typeof window.supabase === 'undefined') {
-    window.supabase = window.supabaseClient;
-}
+// Initialize Supabase client
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Get article slug from URL query parameter
 function getArticleSlug() {
