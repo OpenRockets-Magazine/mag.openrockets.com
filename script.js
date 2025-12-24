@@ -131,8 +131,7 @@ async function loadArticles() {
                 authors(name, verified)
             `)
             .eq('published', true)
-            .order('created_at', { ascending: false })
-            .limit(10);
+            .order('created_at', { ascending: false });
         
         if (error) throw error;
         
@@ -140,9 +139,12 @@ async function loadArticles() {
         hideArticlesLoading();
         
         if (data && data.length > 0) {
+            // Featured: first item
             renderFeaturedArticle(data[0]);
+            // Sidebar: next up to 3 items
             renderSidebarArticles(data.slice(1, 4));
-            renderArticleGrid(data.slice(0, 9));
+            // Grid: all remaining articles after featured + sidebar
+            renderArticleGrid(data.slice(4));
         } else {
             // Show placeholder message
             document.getElementById('featuredSection').innerHTML = 
