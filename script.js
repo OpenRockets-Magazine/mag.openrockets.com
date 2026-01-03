@@ -120,43 +120,134 @@ function hideArticlesLoading() {
     }
 }
 
-// Load articles for homepage
+// Load articles progressively for homepage (one by one)
 async function loadArticles() {
+    const featuredSection = document.getElementById('featuredSection');
+    const articleGrid = document.getElementById('articleGrid');
+    const loadingEl = document.getElementById('articlesLoading');
+    const skeletonCards = loadingEl ? loadingEl.querySelectorAll('.skeleton-card') : [];
+    
+    let articleIndex = 0;
+    let featuredLoaded = false;
+    let sidebarArticles = [];
+    
     try {
-        const { data, error } = await supabase
+        // Get total count first
+        const { count, error: countError } = await supabase
             .from('articles')
-            .select(`
-                *,
-                categories(name, slug),
-                authors(name, verified)
-            `)
-            .eq('published', true)
-            .order('created_at', { ascending: false });
+            .select('*', { count: 'exact', head: true })
+            .eq('published', true);
         
-        if (error) throw error;
+        if (countError) throw countError;
         
-        // Hide loading skeleton
+        if (!count || count === 0) {
+            hideArticlesLoading();
+            featuredSection.innerHTML = 
+                '<p class="no-content-message">No articles published yet. Visit the <a href="/admin.html" style="color: #0066cc;">admin panel</a> to create articles.</p>';
+            return;
+        }
+        
+        // Load articles one by one
+        for (let i = 0; i < count; i++) {
+            const { data, error } = await supabase
+                .from('articles')
+                .select(`
+                    *,
+                    categories(name, slug),
+                    authors(name, verified)
+                `)
+                .eq('published', true)
+                .order('created_at', { ascending: false })
+                .range(i, i);
+            
+            if (error) throw error;
+            if (!data || data.length === 0) continue;
+            
+            const article = data[0];
+            
+            if (i === 0) {
+                // First article - render as featured
+                // Hide featured skeleton first
+                const featuredSkeleton = loadingEl ? loadingEl.querySelector('.skeleton-featured') : null;
+                if (featuredSkeleton) {
+                    featuredSkeleton.style.display = 'none';
+                }
+                renderFeaturedArticle(article);
+                featuredLoaded = true;
+            } else if (i >= 1 && i <= 3) {
+                // Articles 2-4 go to sidebar
+                sidebarArticles.push(article);
+                // Render sidebar progressively
+                renderSidebarArticles(sidebarArticles);
+            } else {
+                // Remaining articles go to grid
+                const gridIndex = i - 4; // 0-based index for grid
+                
+                // Hide corresponding skeleton card
+                if (skeletonCards[gridIndex]) {
+                    skeletonCards[gridIndex].style.display = 'none';
+                }
+                
+                // Append single article to grid
+                appendArticleToGrid(article, articleGrid);
+            }
+            
+            // Small delay for visual effect (progressive loading feel)
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        // Hide any remaining skeleton cards
+        skeletonCards.forEach(card => card.style.display = 'none');
+        
+        // Hide loading text
+        const loadingText = loadingEl ? loadingEl.querySelector('.loading-text') : null;
+        if (loadingText) loadingText.style.display = 'none';
+        
+        // Fully hide loading container after all loaded
         hideArticlesLoading();
         
-        if (data && data.length > 0) {
-            // Featured: first item
-            renderFeaturedArticle(data[0]);
-            // Sidebar: next up to 3 items
-            renderSidebarArticles(data.slice(1, 4));
-            // Grid: all remaining articles after featured + sidebar
-            renderArticleGrid(data.slice(4));
-        } else {
-            // Show placeholder message
-            document.getElementById('featuredSection').innerHTML = 
-                '<p class="no-content-message">No articles published yet. Visit the <a href="/admin.html" style="color: #0066cc;">admin panel</a> to create articles.</p>';
-        }
     } catch (error) {
         console.error('Error loading articles:', error);
-        // Hide loading skeleton even on error
         hideArticlesLoading();
-        document.getElementById('featuredSection').innerHTML = 
+        featuredSection.innerHTML = 
             '<p class="no-content-message" style="color: red;">Error loading articles.</p>';
     }
+}
+
+// Append a single article to the grid
+function appendArticleToGrid(article, grid) {
+    const imageUrl = article.image_url;
+    const categoryName = article.categories?.name || 'Uncategorized';
+    const authorName = article.authors?.name || 'Unknown';
+    const verified = article.authors?.verified ? ' <i class="bi bi-patch-check-fill verified-badge"></i>' : '';
+    const views = getDisplayViews(article.views);
+    
+    const imageHtml = imageUrl ? `
+        <a href="/p/?article=${article.slug}">
+            <img src="${imageUrl}" alt="${article.title}" class="article-image">
+        </a>
+    ` : '';
+    
+    const articleEl = document.createElement('article');
+    articleEl.className = `grid-article ${!imageUrl ? 'no-image' : ''} fade-in`;
+    articleEl.innerHTML = `
+        ${imageHtml}
+        <span class="category">${categoryName}</span>
+        <h3><a href="/p/?article=${article.slug}">${article.title}</a></h3>
+        <p class="article-excerpt">${article.excerpt || ''}</p>
+        <div class="article-meta">
+            <span class="author">${authorName}${verified}</span>
+            <span class="date">${formatDate(article.created_at)}</span>
+            <span class="views"><svg class="views-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="10" width="3" height="5" rx="0.5"/><rect x="6" y="6" width="3" height="9" rx="0.5"/><rect x="11" y="2" width="3" height="13" rx="0.5"/></svg> ${views}</span>
+        </div>
+    `;
+    
+    grid.appendChild(articleEl);
+    
+    // Trigger fade-in animation
+    requestAnimationFrame(() => {
+        articleEl.classList.add('visible');
+    });
 }
 
 // Render featured article
