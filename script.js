@@ -124,11 +124,10 @@ function hideArticlesLoading() {
 async function loadArticles() {
     const featuredSection = document.getElementById('featuredSection');
     const articleGrid = document.getElementById('articleGrid');
-    const loadingEl = document.getElementById('articlesLoading');
-    const skeletonCards = loadingEl ? loadingEl.querySelectorAll('.skeleton-card') : [];
     
-    let articleIndex = 0;
-    let featuredLoaded = false;
+    // Hide shimmer immediately and show content areas
+    hideArticlesLoading();
+    
     let sidebarArticles = [];
     
     try {
@@ -141,7 +140,6 @@ async function loadArticles() {
         if (countError) throw countError;
         
         if (!count || count === 0) {
-            hideArticlesLoading();
             featuredSection.innerHTML = 
                 '<p class="no-content-message">No articles published yet. Visit the <a href="/admin.html" style="color: #0066cc;">admin panel</a> to create articles.</p>';
             return;
@@ -166,55 +164,29 @@ async function loadArticles() {
             const article = data[0];
             
             if (i === 0) {
-                // First article - render as featured
-                // Hide featured skeleton first
-                const featuredSkeleton = loadingEl ? loadingEl.querySelector('.skeleton-featured') : null;
-                if (featuredSkeleton) {
-                    featuredSkeleton.style.display = 'none';
-                }
+                // First article - render as featured with fade-in
                 renderFeaturedArticle(article);
-                featuredLoaded = true;
             } else if (i >= 1 && i <= 3) {
                 // Articles 2-4 go to sidebar
                 sidebarArticles.push(article);
-                // Render sidebar progressively
                 renderSidebarArticles(sidebarArticles);
             } else {
-                // Remaining articles go to grid
-                const gridIndex = i - 4; // 0-based index for grid
-                
-                // Hide corresponding skeleton card
-                if (skeletonCards[gridIndex]) {
-                    skeletonCards[gridIndex].style.display = 'none';
-                }
-                
-                // Append single article to grid
+                // Remaining articles go to grid one by one
                 appendArticleToGrid(article, articleGrid);
             }
             
-            // Small delay for visual effect (progressive loading feel)
-            await new Promise(resolve => setTimeout(resolve, 50));
+            // Small delay between each article for progressive feel
+            await new Promise(resolve => setTimeout(resolve, 80));
         }
-        
-        // Hide any remaining skeleton cards
-        skeletonCards.forEach(card => card.style.display = 'none');
-        
-        // Hide loading text
-        const loadingText = loadingEl ? loadingEl.querySelector('.loading-text') : null;
-        if (loadingText) loadingText.style.display = 'none';
-        
-        // Fully hide loading container after all loaded
-        hideArticlesLoading();
         
     } catch (error) {
         console.error('Error loading articles:', error);
-        hideArticlesLoading();
         featuredSection.innerHTML = 
             '<p class="no-content-message" style="color: red;">Error loading articles.</p>';
     }
 }
 
-// Append a single article to the grid
+// Append a single article to the grid with fade-in
 function appendArticleToGrid(article, grid) {
     const imageUrl = article.image_url;
     const categoryName = article.categories?.name || 'Uncategorized';
@@ -250,7 +222,7 @@ function appendArticleToGrid(article, grid) {
     });
 }
 
-// Render featured article
+// Render featured article with fade-in
 function renderFeaturedArticle(article) {
     const section = document.getElementById('featuredSection');
     const imageUrl = article.image_url;
@@ -266,7 +238,7 @@ function renderFeaturedArticle(article) {
     ` : '';
     
     section.innerHTML = `
-        <article class="featured-article ${!imageUrl ? 'no-image' : ''}">
+        <article class="featured-article fade-in ${!imageUrl ? 'no-image' : ''}">
             ${imageHtml}
             <div class="featured-content">
                 <span class="category">${categoryName}</span>
@@ -285,6 +257,11 @@ function renderFeaturedArticle(article) {
         </article>
         <div class="featured-sidebar" id="sidebarArticles"></div>
     `;
+    
+    // Trigger fade-in
+    requestAnimationFrame(() => {
+        section.querySelector('.featured-article').classList.add('visible');
+    });
 }
 
 // Render sidebar articles
